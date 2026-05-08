@@ -1,19 +1,18 @@
 # Auto Task Configuration - [PROJECT_TITLE]
 
 <!-- ==============================================================================
-     INSTRUCTION: SPEC CODING TEMPLATE - AUTO TASK CONFIGURATION
+     INSTRUCTION: SPEC CODING TEMPLATE - AUTO TASK CONFIGURATION (v2)
      ==============================================================================
      This template defines automated task execution configuration for
-     infrastructure and platform engineering projects. It provides a structured
-     YAML configuration that drives task automation, branching strategy,
-     commit conventions, status tracking, and validation gates.
+     infrastructure and platform engineering projects, using a Sub-Agent
+     architecture. Each task runs in an isolated Sub-Agent context, enabling
+     parallel execution, clean context separation, and resumable workflows.
 
      HOW TO USE THIS TEMPLATE:
      1. Replace all [PLACEHOLDER] markers with project-specific content.
-     2. Copy the YAML configuration block into a file named
-        AUTO_TASK_CONFIG.yaml in your project root or .spec/ directory.
+     2. Copy the YAML configuration block into AUTO_TASK_CONFIG.yaml.
      3. Follow the inline comments (INSTRUCTION: markers) for guidance.
-     4. Validate your configuration using the field reference (Section 3).
+     4. Validate your configuration using the field reference (Section 4).
      5. Pair this configuration with a Task List document (Template 04).
      ============================================================================ -->
 
@@ -36,48 +35,202 @@
 
 ## Table of Contents
 
-- [Section 1: Overview](#section-1-overview)
-- [Section 2: Configuration Template](#section-2-configuration-template)
-- [Section 3: Configuration Fields Reference](#section-3-configuration-fields-reference)
-- [Section 4: Usage Examples](#section-4-usage-examples)
-- [Section 5: Integration with Task List](#section-5-integration-with-task-list)
-- [Section 6: Customization Guide](#section-6-customization-guide)
-- [Section 7: Troubleshooting](#section-7-troubleshooting)
+- [Section 1: Design Philosophy](#section-1-design-philosophy)
+- [Section 2: Architecture Overview](#section-2-architecture-overview)
+- [Section 3: Task Execution Lifecycle](#section-3-task-execution-lifecycle)
+- [Section 4: Configuration Template](#section-4-configuration-template)
+- [Section 5: Configuration Fields Reference](#section-5-configuration-fields-reference)
+- [Section 6: Task Execution Rules](#section-6-task-execution-rules)
+- [Section 7: Task List Integration](#section-7-task-list-integration)
+- [Section 8: Orchestrator Execution Templates](#section-8-orchestrator-execution-templates)
+- [Section 9: Parallel Execution Strategy](#section-9-parallel-execution-strategy)
+- [Section 10: Exception Handling](#section-10-exception-handling)
+- [Section 11: Customization Guide](#section-11-customization-guide)
+- [Section 12: Troubleshooting](#section-12-troubleshooting)
 
 ---
 
-## Section 1: Overview
+## Section 1: Design Philosophy
 
-### 1.1 What is AUTO_TASK_CONFIG?
+### 1.1 Core Principles
 
-AUTO_TASK_CONFIG is a YAML-based configuration file that drives automated task
-execution for infrastructure and platform engineering workflows. It defines how
-tasks are executed, how branches and commits are managed, how status is tracked,
-and what validation gates must pass before proceeding. It pairs with a Task List
-document (Template 04) for full automation coverage.
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                    Sub-Agent Task Execution Principles               │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                     │
+│  🔒 Native Context Isolation                                       │
+│     ├── Each task executed by an independent Sub-Agent              │
+│     ├── Sub-Agent has its own context window, naturally isolated    │
+│     ├── Orchestrator main context stays clean                       │
+│     └── Isolation guaranteed by architecture, not discipline        │
+│                                                                     │
+│  🎯 Single Responsibility                                           │
+│     ├── Each Sub-Agent completes exactly one well-defined goal      │
+│     ├── Task granularity is controllable and traceable              │
+│     └── Completion criteria are explicit (Acceptance Criteria)      │
+│                                                                     │
+│  📝 State Persistence                                               │
+│     ├── Task states recorded in the Task List document              │
+│     ├── Every state change is immediately persisted                 │
+│     └── Supports resumption after interruption                      │
+│                                                                     │
+│  ⚡ Parallel Execution                                              │
+│     ├── Dependency-free tasks dispatched to multiple Sub-Agents     │
+│     ├── Orchestrator handles dependency ordering and concurrency    │
+│     └── Coordination via Task List and file system                  │
+│                                                                     │
+│  🔄 Idempotent Execution                                            │
+│     ├── Same task can be safely re-executed                         │
+│     ├── Pre-checks ensure execution conditions are met              │
+│     └── Failed tasks can resume from checkpoint                     │
+│                                                                     │
+└─────────────────────────────────────────────────────────────────────┘
+```
 
-### 1.2 When to Use This Template
+### 1.2 v1 to v2 Key Changes
+
+| Dimension | v1 (Manual Isolation) | v2 (Sub-Agent Isolation) |
+|-----------|----------------------|--------------------------|
+| Context isolation | Manual `/clear`, new sessions | Sub-Agent native isolation |
+| Isolation reliability | Depends on human discipline | Architecture-level guarantee |
+| Parallel capability | Not supported (single session serial) | Native support (multi-Agent parallel) |
+| Orchestrator context | Polluted by task details | Clean, dispatch only |
+| Inter-task communication | Via files / Task List | Via files / Task List (unchanged) |
+
+### 1.3 When to Use This Template
 
 - Multi-step infrastructure deployments with sequential or parallel phases
 - Environment promotion workflows (dev, test, staging, prod)
-- Batch provisioning tasks requiring validation gates
 - Projects where task execution consistency and auditability are required
-
-### 1.3 Integration with Task List Documents
-
-<!-- INSTRUCTION: Ensure status_tracking.file points to the correct Task List document. -->
-
-```
-[AUTO_TASK_CONFIG.yaml] ----references----> [task-list.md]
-        |                                        |
-        | drives execution                       | defines tasks
-        v                                        v
-   [Automation Engine] ----updates-------> [task-list.md status]
-```
+- Multi-module parallel development to reduce total time
+- Batch test generation (parallelizable, independent)
 
 ---
 
-## Section 2: Configuration Template
+## Section 2: Architecture Overview
+
+### 2.1 Two-Layer Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                      Two-Layer Execution Architecture               │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                     │
+│   ┌─────────────────────────────────────────────────────────────┐   │
+│   │                    Orchestrator (Main Agent)                 │   │
+│   │                                                             │   │
+│   │  Responsibilities:                                          │   │
+│   │  ├── Read Task List, parse task dependencies                │   │
+│   │  ├── Select next executable task(s)                         │   │
+│   │  ├── Construct Sub-Agent Prompts                            │   │
+│   │  ├── Dispatch Sub-Agents to execute tasks                   │   │
+│   │  ├── Collect Sub-Agent execution results                    │   │
+│   │  ├── Update Task List status                                │   │
+│   │  └── Handle exceptions and retries                          │   │
+│   │                                                             │   │
+│   │  Context: Clean, only dispatch state                        │   │
+│   └──────────┬──────────────┬──────────────┬────────────────────┘   │
+│              │              │              │                         │
+│              ▼              ▼              ▼                         │
+│   ┌──────────────┐ ┌──────────────┐ ┌──────────────┐              │
+│   │  Sub-Agent 1 │ │  Sub-Agent 2 │ │  Sub-Agent 3 │              │
+│   │  (Task A)    │ │  (Task B)    │ │  (Task C)    │              │
+│   │              │ │              │ │              │              │
+│   │ Independent  │ │ Independent  │ │ Independent  │              │
+│   │ context      │ │ context      │ │ context      │              │
+│   │ Destroyed    │ │ Destroyed    │ │ Destroyed    │              │
+│   │ after done   │ │ after done   │ │ after done   │              │
+│   └──────────────┘ └──────────────┘ └──────────────┘              │
+│                                                                     │
+│   Communication: Task List document + File system + Git repository │
+│                                                                     │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+### 2.2 Orchestrator vs Sub-Agent Responsibility Matrix
+
+| Responsibility | Orchestrator | Sub-Agent |
+|---------------|-------------|-----------|
+| Read Task List | YES | NO (task details injected via Prompt) |
+| Dependency check | YES | NO (Orchestrator guarantees deps met) |
+| State management | YES | NO (reports result, Orchestrator updates) |
+| Code writing | NO | YES |
+| Test execution | NO | YES |
+| Git commit | NO (or on behalf of Sub-Agent) | YES |
+| AC verification | Receives result | YES (executes and reports) |
+| Exception retry | YES | NO (reports failure, Orchestrator decides) |
+
+---
+
+## Section 3: Task Execution Lifecycle
+
+### 3.1 Lifecycle Diagram
+
+```
+┌──────────┐
+│  PENDING │ ◄──────────────────────────────────────────┐
+└────┬─────┘                                            │
+     │ [Orchestrator selects task]                      │
+     ▼                                                  │
+┌──────────┐     ┌──────────────────────────────┐       │
+│DEPENDENCY│────►│ 1. Check dependencies COMPLETED│      │
+│  CHECK   │     │ 2. Check prerequisite files    │      │
+└────┬─────┘     └──────────────────────────────┘       │
+     │ [Dependencies met]                                │
+     ▼                                                  │
+┌──────────┐     ┌──────────────────────────────┐       │
+│ PREPARE  │────►│ 1. Update Task List to RUNNING│      │
+│   AGENT  │     │ 2. Construct Sub-Agent Prompt │       │
+└────┬─────┘     │ 3. Inject task details         │       │
+     │           └──────────────────────────────┘       │
+     ▼                                                  │
+┌──────────┐     ┌──────────────────────────────┐       │
+│  SPAWN   │────►│ 1. Invoke Agent Tool           │      │
+│SUB-AGENT │     │ 2. Sub-Agent runs in isolation │  [FAILED]
+└────┬─────┘     │ 3. Await execution result      │      │
+     │           └──────────────────────────────┘       │
+     │ [Result returned]                                 │
+     ▼                                                  │
+┌──────────┐     ┌──────────────────────────────┐       │
+│  RESULT  │────►│ 1. Parse Sub-Agent result     ├──────┘
+│  PROCESS │     │ 2. Verify AC completion       │
+└────┬─────┘     │ 3. Check deliverables          │
+     │ [Passed]  └──────────────────────────────┘
+     ▼
+┌──────────┐     ┌──────────────────────────────┐
+│ FINALIZE │────►│ 1. Git add & commit           │
+│          │     │ 2. Update Task List status    │
+└────┬─────┘     │ 3. Record execution summary   │
+     │           └──────────────────────────────┘
+     ▼
+┌──────────┐     ┌──────────────────────────────┐
+│  NEXT    │────►│ 1. Select next executable task│
+│  TASK    │     │ 2. Dispatch parallel if able  │
+└────┬─────┘     │ 3. End if no more tasks       │
+     │           └──────────────────────────────┘
+     ▼
+┌──────────┐
+│COMPLETED │
+└──────────┘
+```
+
+### 3.2 Phase Descriptions
+
+| Phase | Orchestrator Action | Sub-Agent Action |
+|-------|---------------------|------------------|
+| PENDING | Awaiting selection | - |
+| DEPENDENCY_CHECK | Verify prerequisites | - |
+| PREPARE_AGENT | Construct Prompt | - |
+| SPAWN_SUB_AGENT | Invoke Agent Tool | Execute in isolated context |
+| RESULT_PROCESS | Parse result, verify AC | - |
+| FINALIZE | Git commit, update docs | - |
+| NEXT_TASK | Select and dispatch | - |
+| COMPLETED | - | - |
+
+---
+
+## Section 4: Configuration Template
 
 <!-- INSTRUCTION: Copy the YAML block below into AUTO_TASK_CONFIG.yaml.
      Replace all [placeholder] values with project-specific configuration.
@@ -93,10 +246,21 @@ execution:
   mode: auto | semi-auto | manual
   # INSTRUCTION: auto=full automation, semi-auto=pause at gates, manual=track only
   max_parallel_tasks: [number]
-  # INSTRUCTION: Max concurrent tasks. Use 1 for sequential. Range: 1-5.
+  # INSTRUCTION: Max concurrent Sub-Agents. Use 1 for sequential. Range: 1-5.
   stop_on_failure: true | false
   auto_commit: true | false
   commit_message_prefix: "[prefix]"
+
+sub_agent:
+  # INSTRUCTION: Sub-Agent dispatch configuration.
+  default_mode: foreground | background | worktree
+  # INSTRUCTION: foreground=wait for result, background=fire and continue, worktree=file isolation.
+  subagent_type: general-purpose | [custom-type]
+  # INSTRUCTION: Optional. Matches available agent types in your tool.
+  max_retries: 2
+  # INSTRUCTION: Max retry attempts per failed task. Range: 0-3.
+  retry_backoff: [30, 60]
+  # INSTRUCTION: Seconds to wait between retries. Length must match max_retries.
 
 branch:
   name: "[branch-name]"
@@ -157,24 +321,45 @@ validation:
 
 ---
 
-## Section 3: Configuration Fields Reference
+## Section 5: Configuration Fields Reference
 
 <!-- INSTRUCTION: Use this table to validate your YAML configuration.
      Check the "Required" column to identify mandatory fields. -->
 
+### 5.1 Execution Fields
+
 | Field | Type | Required | Default | Description |
 |-------|------|----------|---------|-------------|
 | `execution.mode` | string | Yes | `auto` | Automation level: `auto`, `semi-auto`, `manual` |
-| `execution.max_parallel_tasks` | integer | Yes | `3` | Max concurrent tasks. Use `1` for sequential |
+| `execution.max_parallel_tasks` | integer | Yes | `3` | Max concurrent Sub-Agents. Use `1` for sequential |
 | `execution.stop_on_failure` | boolean | Yes | `true` | Halt all execution when any task fails |
 | `execution.auto_commit` | boolean | No | `true` | Commit automatically after each task |
 | `execution.commit_message_prefix` | string | No | `"[automate]"` | Prefix for auto-generated commit messages |
+
+### 5.2 Sub-Agent Fields
+
+| Field | Type | Required | Default | Description |
+|-------|------|----------|---------|-------------|
+| `sub_agent.default_mode` | string | No | `foreground` | Default dispatch mode: `foreground`, `background`, `worktree` |
+| `sub_agent.subagent_type` | string | No | `general-purpose` | Agent type for specialized tasks |
+| `sub_agent.max_retries` | integer | No | `2` | Max retry attempts per failed task |
+| `sub_agent.retry_backoff` | integer[] | No | `[30, 60]` | Seconds to wait between retries |
+
+### 5.3 Branch & Commit Fields
+
+| Field | Type | Required | Default | Description |
+|-------|------|----------|---------|-------------|
 | `branch.name` | string | Yes | - | Feature branch name for automated work |
 | `branch.create_if_missing` | boolean | No | `true` | Create the branch if it does not exist |
 | `branch.base_branch` | string | Yes | `"main"` | Base branch to branch from and merge into |
 | `commit.auto_stage` | boolean | No | `true` | Automatically stage all changed files |
 | `commit.conventional_commits` | boolean | No | `true` | Enforce Conventional Commits format |
 | `commit.message_template` | string | No | `"[type]([scope]): [description]"` | Template with tokens: `[type]`, `[scope]`, `[description]`, `[task_id]` |
+
+### 5.4 Tracking & Validation Fields
+
+| Field | Type | Required | Default | Description |
+|-------|------|----------|---------|-------------|
 | `status_tracking.file` | string | Yes | - | Path to the Task List markdown file |
 | `status_tracking.format` | string | No | `"emoji"` | Status display: `emoji` or `text` |
 | `status_tracking.update_frequency` | string | No | `"after_each_task"` | Cadence: `after_each_task`, `after_each_phase`, `manual` |
@@ -193,234 +378,482 @@ validation:
 
 ---
 
-## Section 4: Usage Examples
+## Section 6: Task Execution Rules
 
-<!-- INSTRUCTION: Adapt these examples to your project. Each is a complete
-     configuration that can be copied and modified. -->
-
-### 4.1 Basic Example - Infrastructure Deployment
+### 6.1 Execution Order Strategy
 
 ```yaml
-# AUTO_TASK_CONFIG - Terraform VPC Deployment
-# INSTRUCTION: Single-environment Terraform deployment with minimal validation.
+execution_order:
+  strategy: "dependency_first"
+  # INSTRUCTION: Available strategies:
+  #   dependency_first: Execute all prerequisite tasks first
+  #   phase_sequential: Tasks within a phase can parallelize, across phases must be sequential
+  #   priority_based: Higher priority tasks dispatched first
 
-execution:
-  mode: auto
-  max_parallel_tasks: 1
-  stop_on_failure: true
-  auto_commit: true
-  commit_message_prefix: "[tf-deploy]"
-
-branch:
-  name: "feature/1920-vpc-network-setup"
-  create_if_missing: true
-  base_branch: "main"
-
-commit:
-  auto_stage: true
-  conventional_commits: true
-  message_template: "feat(network): [description] - refs #[task_id]"
-
-status_tracking:
-  file: "devops/docs/tasks/TASK_LIST_1920.md"
-  format: "emoji"
-  update_frequency: "after_each_task"
-
-progress_documentation:
-  enabled: true
-  file: "devops/docs/progress/PROGRESS_1920.md"
-  include_timestamps: true
-
-blocking_conditions:
-  - condition: "Uncommitted changes in working directory"
-    action: "stop"
-  - condition: "Terraform state lock detected"
-    action: "stop"
-
-environments:
-  order: ["dev"]
-  deploy_sequence: false
-  require_approval: []
-
-validation:
-  pre_task:
-    - "terraform fmt -check"
-    - "terraform validate"
-  post_task:
-    - "terraform plan -detailed-exitcode"
-  pre_phase:
-    - "terraform init -backend-config=dev.hcl"
-  post_phase:
-    - "terraform output -json > devops/outputs/dev-vpc.json"
+  parallel:
+    enabled: true
+    # INSTRUCTION: Enable parallel dispatch to multiple Sub-Agents.
+    max_concurrent: [number]
+    # INSTRUCTION: Max concurrent Sub-Agents. Should match execution.max_parallel_tasks.
+    strategy: "dependency_level"
+    # INSTRUCTION: dependency_level = tasks at the same dependency level can run in parallel.
 ```
 
-### 4.2 Advanced Example - Multi-Environment with Gates
+### 6.2 Task Selection Algorithm
 
-```yaml
-# AUTO_TASK_CONFIG - Java Fargate Service Multi-Env Deployment
-# INSTRUCTION: Full environment promotion with approval gates and validation.
+```python
+def get_next_tasks(task_list: List[Task], max_concurrent: int = 3) -> List[Task]:
+    """
+    Get the next batch of executable tasks (supports parallel dispatch).
 
-execution:
-  mode: semi-auto
-  max_parallel_tasks: 2
-  stop_on_failure: true
-  auto_commit: true
-  commit_message_prefix: "[fargate-deploy]"
+    Selection rules:
+    1. Status is PENDING
+    2. All dependencies have status COMPLETED
+    3. Sort by task ID (stable ordering)
+    4. Do not exceed max_concurrent concurrent tasks
+    """
+    ready_tasks = []
 
-branch:
-  name: "feature/1880-alb-fargate-java-service"
-  create_if_missing: false
-  base_branch: "main"
+    for task in sorted(task_list, key=lambda t: t.id):
+        if task.status != TaskStatus.PENDING:
+            continue
 
-commit:
-  auto_stage: true
-  conventional_commits: true
-  message_template: "[type]([scope]): [description]"
+        dependencies_met = all(
+            dep.status == TaskStatus.COMPLETED
+            for dep in task.dependencies
+        )
 
-status_tracking:
-  file: "devops/docs/tasks/TASK_LIST_1880.md"
-  format: "emoji"
-  update_frequency: "after_each_phase"
+        if not dependencies_met:
+            continue
 
-progress_documentation:
-  enabled: true
-  file: "devops/docs/progress/PROGRESS_1880.md"
-  include_timestamps: true
+        ready_tasks.append(task)
 
-blocking_conditions:
-  - condition: "Uncommitted changes in working directory"
-    action: "stop"
-  - condition: "Target environment unreachable"
-    action: "stop"
-  - condition: "Validation gate failure"
-    action: "ask"
-  - condition: "Branch divergence from base"
-    action: "ask"
-  - condition: "ALB target group health check failing"
-    action: "stop"
+        if len(ready_tasks) >= max_concurrent:
+            break
 
-environments:
-  order: ["dev", "test", "staging", "prod"]
-  deploy_sequence: true
-  require_approval: ["staging", "prod"]
-
-validation:
-  pre_task:
-    - "terraform fmt -check"
-    - "terraform validate"
-    - "aws sts get-caller-identity"
-  post_task:
-    - "terraform plan -detailed-exitcode"
-    - "aws elbv2 describe-target-health --target-group-arn $TG_ARN"
-  pre_phase:
-    - "terraform init -backend-config=env/$ENV.hcl"
-  post_phase:
-    - "pytest tests/integration/test_$ENV.py"
-    - "terraform output -json > devops/outputs/$ENV-outputs.json"
+    return ready_tasks
 ```
 
-### 4.3 Minimal Example - Single Task Automation
+### 6.3 Sub-Agent Mode Selection Matrix
 
-```yaml
-# AUTO_TASK_CONFIG - Quick Lambda Deploy
-# INSTRUCTION: Minimal config for small tasks. Only required fields populated.
-
-execution:
-  mode: auto
-  max_parallel_tasks: 1
-  stop_on_failure: true
-
-branch:
-  name: "bugfix/2105-lambda-timeout-fix"
-  create_if_missing: true
-  base_branch: "main"
-
-status_tracking:
-  file: "devops/docs/tasks/TASK_LIST_2105.md"
-  format: "text"
-  update_frequency: "after_each_task"
-```
+| Scenario | Recommended Mode | Reason |
+|----------|-----------------|--------|
+| Sequential tasks (A -> B -> C) | foreground | Later tasks depend on earlier results |
+| Independent tasks (A, B, C unrelated) | background | Parallel execution saves time |
+| May modify same files | worktree | File-system-level isolation prevents conflicts |
+| Single simple task | foreground | No complex isolation needed |
+| Batch test writing | background | Parallelizable, no inter-dependencies |
 
 ---
 
-## Section 5: Integration with Task List
+## Section 7: Task List Integration
 
 <!-- INSTRUCTION: AUTO_TASK_CONFIG integrates with Task List (Template 04) via status_tracking.file. -->
 
-### 5.1 Reference Mechanism
+### 7.1 Status Update Triggers
 
-The `status_tracking.file` field points to a Task List markdown file. The
-automation engine reads task IDs/descriptions, executes tasks in phase order,
-and updates status fields based on `update_frequency`.
+```yaml
+task_list_update:
+  update_triggers:
+    - on_task_start       # Before Sub-Agent dispatch
+    - on_task_complete    # After Sub-Agent returns success
+    - on_task_failure     # After Sub-Agent returns failure
 
-### 5.2 Status Update Flow
+  fields_to_update:
+    on_task_start:
+      - status: "RUNNING"
+      - start_time: "current timestamp"
+      - agent_mode: "foreground | background | worktree"
 
-```
-                     AUTO_TASK_CONFIG.yaml
-                            |
-                 [Reads config settings]
-                            |
-                            v
-   +--------------------------------------------------+
-   |              AUTOMATION ENGINE                     |
-   |  1. Read Task List file                            |
-   |     v                                              |
-   |  2. Parse tasks and phases                         |
-   |     v                                              |
-   |  3. For each task:                                 |
-   |     +--> Run pre_task validation                   |
-   |     +--> Execute task                              |
-   |     +--> Run post_task validation                  |
-   |     +--> Update status in Task List                |
-   |     +--> Write progress log entry                  |
-   |     +--> Commit changes (if auto_commit=true)      |
-   |     v                                              |
-   |  4. For each phase:                                |
-   |     +--> Run pre_phase validation                  |
-   |     +--> Execute all tasks in phase                |
-   |     +--> Run post_phase validation                 |
-   +--------------------------------------------------+
-                   |                  |
-                   v                  v
-        [task-list.md]      [progress.md updated]
+    on_task_complete:
+      - status: "COMPLETED"
+      - end_time: "current timestamp"
+      - commit_id: "Git Commit SHA"
+      - commit_summary: "change summary"
+      - acceptance_criteria: "mark each item complete"
+
+    on_task_failure:
+      - status: "FAILED"
+      - failure_reason: "failure cause"
 ```
 
-### 5.3 Progress Tracking Example
+### 7.2 Task State Machine
 
-Task List before execution:
+```
+                         ┌───────────┐
+              ┌─────────►│ CANCELLED │
+              │          └───────────┘
+              │ [user cancel]
+              │
+         ┌────┴────┐    [dep not met]    ┌─────────┐
+         │ PENDING │◄──────────────────│ BLOCKED │
+         └────┬────┘                   └────▲────┘
+              │                              │
+              │ [dispatch Sub-Agent]         │ [dep incomplete]
+              │                              │
+              ▼                              │
+         ┌─────────┐                         │
+         │ RUNNING │─────────────────────────┘
+         └────┬────┘
+              │ [Sub-Agent returns result]
+        ┌─────┴──────┐
+        │            │
+        ▼            ▼
+   ┌──────────┐  ┌────────┐
+   │COMPLETED │  │ FAILED │
+   └──────────┘  └────┬───┘
+                       │ [Orchestrator retries]
+                       ▼
+                  ┌─────────┐
+                  │ PENDING │
+                  └─────────┘
+```
+
+### 7.3 Sub-Agent Result Report Protocol
+
+<!-- INSTRUCTION: Sub-Agents must return results in this fixed format. -->
 
 ```markdown
-### Phase 1: Network Infrastructure
-- [ ] T1.1 Create VPC and subnets
-- [ ] T1.2 Configure route tables
-```
+## Sub-Agent Execution Report
 
-Task List after T1.1 completes:
+### Result
+- **Status**: SUCCESS / FAILED
+- **Failure Reason**: (fill only when FAILED)
 
-```markdown
-### Phase 1: Network Infrastructure
-- [x] T1.1 Create VPC and subnets
-- [ ] T1.2 Configure route tables
-```
+### Changed Files
+- <file1> — <change description>
+- <file2> — <change description>
 
-Progress log entry:
+### Acceptance Criteria Verification
+- [x] AC1: <description>
+- [x] AC2: <description>
+- [ ] AC3: <description> — <reason incomplete>
 
-```
-## 2025-01-15T09:32:14Z - T1.1 Create VPC and subnets
-- Status: COMPLETED
-- Duration: 47s
-- Validation: pre_task passed, post_task passed
-- Commit: feat(network): create VPC and subnets - refs T1.1
+### Git Commit
+- Commit ID: <SHA> (if Sub-Agent committed)
+- OR: Not committed, Orchestrator to commit on behalf
+
+### Notes
+- <any issues requiring attention>
 ```
 
 ---
 
-## Section 6: Customization Guide
+## Section 8: Orchestrator Execution Templates
+
+### 8.1 Orchestrator Main Prompt
+
+<!-- INSTRUCTION: Use this prompt template to instruct the Orchestrator agent.
+     Replace [PLACEHOLDER] values with project-specific paths and settings. -->
+
+```markdown
+# Task Orchestration Directive (Orchestrator)
+
+## Role
+You are a Task Orchestrator. You dispatch Sub-Agents to execute tasks from the
+Task List in order. You do NOT write code directly — all development work is
+delegated through the Agent Tool.
+
+## Execution Context
+- **Task List Path**: [path/to/task-list.md]
+- **Starting Task ID**: [TASK-001]
+- **Max Concurrency**: [3]
+
+## Execution Steps
+
+### Step 1: Read Task List
+Read the Task List document. Build the task dependency graph.
+
+### Step 2: Dispatch Loop
+Repeat until all tasks are complete:
+
+1. **Select Tasks**: Call get_next_tasks() to find executable tasks
+2. **Construct Prompts**: Generate Sub-Agent Prompt for each task (see 8.2)
+3. **Dispatch**: Invoke Agent Tool:
+   - Has downstream dependents → foreground (wait for completion)
+   - No downstream dependents → background (parallel execution)
+4. **Process Results**: Parse Sub-Agent execution report
+5. **Update Status**: Update Task List
+6. **Git Commit**: If Sub-Agent did not commit, commit on its behalf
+
+### Step 3: Output Summary Report
+
+## Constraints
+1. Do NOT write code or modify files (Task List updates excepted)
+2. All development work is done by Sub-Agents
+3. Update Task List immediately after each Sub-Agent returns
+4. On FAILED tasks, analyze cause and decide whether to retry
+5. Do not exceed max_concurrent parallel Sub-Agents
+```
+
+### 8.2 Sub-Agent Task Prompt Template
+
+<!-- INSTRUCTION: Use this template to generate the prompt for each Sub-Agent.
+     Fill in the bracketed sections from the Task List for each task. -->
+
+```markdown
+# Task Execution Directive (Sub-Agent)
+
+## Task Information
+- **Task ID**: [TASK-XXX]
+- **Task Description**: [full description from Task List]
+- **Phase**: [Phase N]
+
+## Prior Task Summary
+<!-- INSTRUCTION: If this task has completed predecessors, include their summaries.
+     If no predecessors, omit this section. -->
+- [TASK-YYY]: [completion summary, e.g., "Created project directory structure, Commit: abc1234"]
+
+## Acceptance Criteria
+<!-- INSTRUCTION: Copy the AC list from the Task List for this task. -->
+- [ ] [AC1 description]
+- [ ] [AC2 description]
+
+## Reference Documents
+<!-- INSTRUCTION: Copy reference document paths from the Task List. -->
+- [path/to/reference-doc]
+
+## Execution Requirements
+
+### Code Changes
+1. Complete development work per the task description
+2. Ensure all Acceptance Criteria are satisfied
+3. Keep code style consistent with existing project style
+
+### Verification
+1. Check each Acceptance Criteria item
+2. Run test cases (if available)
+3. Verify deliverables exist and are correct
+
+### Git Commit
+1. Stage changed files with `git add`
+2. Commit with format:
+   ```
+   [type]([task-id]): [short description]
+
+   - [change 1]
+   - [change 2]
+
+   Task: [TASK-XXX]
+   ```
+3. Record the Commit ID
+
+## Output Requirements
+After completion, output a fixed-format execution report:
+
+```
+## Sub-Agent Execution Report
+
+### Result
+- **Status**: SUCCESS / FAILED
+- **Failure Reason**: (FAILED only)
+
+### Changed Files
+- <file> — <change description>
+
+### Acceptance Criteria Verification
+- [x] AC1: <description>
+- [ ] AC2: <description> — <reason>
+
+### Git Commit
+- Commit ID: <SHA>
+
+### Notes
+- <any issues>
+```
+
+## Constraints
+1. Complete ONLY the specified task — do not perform other tasks
+2. Do NOT modify files outside the task scope
+3. If unable to continue, report FAILED with reason
+```
+
+### 8.3 Parallel Dispatch Template
+
+<!-- INSTRUCTION: Use when multiple tasks at the same dependency level can run concurrently. -->
+
+```markdown
+# Parallel Task Dispatch Directive
+
+## Parallelizable Tasks
+The following tasks have no inter-dependencies and can be dispatched simultaneously:
+
+### Sub-Agent 1: [TASK-XXX]
+- **Task Description**: [description]
+- **Acceptance Criteria**: [AC list]
+- **Execution Mode**: background
+
+### Sub-Agent 2: [TASK-YYY]
+- **Task Description**: [description]
+- **Acceptance Criteria**: [AC list]
+- **Execution Mode**: background
+
+## Dispatch Method
+Issue both Agent tool calls in a single message (parallel tool calls):
+
+Agent Call 1:
+- description: "[TASK-XXX]: [short description]"
+- prompt: <full TASK-XXX Prompt>
+- run_in_background: true
+
+Agent Call 2:
+- description: "[TASK-YYY]: [short description]"
+- prompt: <full TASK-YYY Prompt>
+- run_in_background: true
+
+## Collect Results
+Wait for all background Sub-Agents to complete, then process results one by one.
+```
+
+### 8.4 Task Recovery Prompt
+
+<!-- INSTRUCTION: Use when resuming a previously failed or interrupted task. -->
+
+```markdown
+# Task Recovery Directive
+
+## Execution Context
+- **Task List Path**: [path/to/task-list.md]
+- **Recovery Task ID**: [TASK-XXX]
+
+## Recovery Steps
+
+### Step 1: Assess Current State
+1. Read Task List for [TASK-XXX] current status
+2. Check Git working directory status
+3. Analyze completed vs. pending work
+
+### Step 2: Construct Recovery Prompt
+Generate a recovery Sub-Agent Prompt including:
+1. Original task description and AC
+2. Work already completed (from Git diff analysis)
+3. Work remaining
+4. Add "resume from checkpoint" directive
+
+### Step 3: Dispatch Recovery Sub-Agent
+Invoke Agent Tool to execute the recovery task.
+```
+
+---
+
+## Section 9: Parallel Execution Strategy
+
+### 9.1 Dependency Graph Analysis
+
+```
+<!-- INSTRUCTION: Replace with your actual task dependency graph.
+     Identify which levels can be parallelized. -->
+
+Example dependency graph:
+
+    TASK-001 (PENDING)
+        │
+        ├── TASK-002 (depends on 001)
+        │       │
+        │       └── TASK-004 (depends on 002, 003)
+        │
+        └── TASK-003 (depends on 001)
+
+Execution levels:
+  Level 0: [TASK-001]              → Sequential
+  Level 1: [TASK-002, TASK-003]    → Can parallelize
+  Level 2: [TASK-004]              → Sequential
+```
+
+### 9.2 Parallel Scheduling Rules
+
+| Rule | Description |
+|------|-------------|
+| Same level, no deps | Tasks at the same dependency level with no mutual dependencies can be dispatched in parallel |
+| Cross level | Tasks at different levels must execute sequentially |
+| Max concurrency | Parallel count must not exceed `max_concurrent` |
+| Failure isolation | If one task fails, pause remaining same-level dispatches |
+
+### 9.3 Parallel Safety Constraints
+
+| Constraint | Description | Check Method |
+|-----------|-------------|--------------|
+| File conflicts | Parallel tasks should not modify the same files | Declare change scope in Prompt |
+| Dependency completeness | Prerequisites must be COMPLETED | Task List status check |
+| Resource limits | Concurrency must not exceed max_concurrent | Orchestrator count |
+| Failure isolation | One failure must not affect others | Each Sub-Agent is independent |
+
+---
+
+## Section 10: Exception Handling
+
+### 10.1 Exception Types and Strategies
+
+| Exception Type | Description | Orchestrator Response |
+|---------------|-------------|----------------------|
+| Dependency not met | Dependency task not complete | Mark BLOCKED, retry later |
+| Sub-Agent execution failed | Sub-Agent returns FAILED | Analyze cause, decide retry/skip/abort |
+| Sub-Agent timeout | Sub-Agent long-running | Wait for timeout, mark FAILED |
+| AC verification failed | Output doesn't meet requirements | Re-dispatch with fix instructions |
+| Git commit failed | Commit conflict or permissions | Pause, wait for manual resolution |
+| Task List update failed | File lock or format error | Retry or update manually |
+| Parallel task conflict | Parallel tasks modified same files | Serialize retry or use worktree |
+
+### 10.2 Failure Handling Flow
+
+```
+Sub-Agent FAILED
+       │
+       ▼
+Orchestrator analyzes
+Sub-Agent report
+       │
+  ┌────┴────────┬──────────────┬──────────────┐
+  │             │              │              │
+  ▼             ▼              ▼              ▼
+Retryable    Fix needed     Needs manual   Should cancel
+  │             │              │              │
+  ▼             ▼              ▼              ▼
+Reset to    Fix Prompt     Pause and      Mark as
+PENDING,    then re-       notify user    CANCELLED
+re-dispatch dispatch       │
+                              ▼
+                           Manual
+                           intervention
+
+Retry limit: max_retries per task (default: 2)
+On limit exceeded: mark FAILED, pause downstream, request manual intervention
+```
+
+---
+
+## Section 11: Customization Guide
 
 <!-- INSTRUCTION: Use this section to extend the configuration beyond
      the default template. -->
 
-### 6.1 Adding Custom Blocking Conditions
+### 11.1 Sub-Agent Type Configuration
+
+```yaml
+# INSTRUCTION: Configure Sub-Agent types for specialized tasks.
+sub_agent_types:
+  foreground:
+    use_when: "Task has downstream dependents, requires sequential execution"
+    tool_params:
+      description: "Task short description"
+      prompt: "Full task Prompt"
+
+  background:
+    use_when: "Task has no downstream dependents, can run in parallel"
+    tool_params:
+      description: "Task short description"
+      prompt: "Full task Prompt"
+      run_in_background: true
+
+  worktree:
+    use_when: "Task may conflict with other tasks on files, needs full isolation"
+    tool_params:
+      description: "Task short description"
+      prompt: "Full task Prompt"
+      isolation: "worktree"
+```
+
+### 11.2 Custom Blocking Conditions
 
 ```yaml
 blocking_conditions:
@@ -429,40 +862,13 @@ blocking_conditions:
 
   - condition: "Database migration pending"
     action: "ask"
-    # INSTRUCTION: "ask" lets the operator decide whether to proceed.
-
   - condition: "SSL certificate expiring within 7 days"
     action: "stop"
-    # INSTRUCTION: "stop" is safest for security-related conditions.
-
   - condition: "ECS service desired count mismatch"
     action: "ask"
 ```
 
-### 6.2 Custom Validation Commands
-
-Validation commands are shell commands that must return exit code 0. The
-automation engine provides environment variables: `$ENV` (current environment),
-`$PHASE` (current phase), `$TASK_ID` (current task identifier).
-
-```yaml
-validation:
-  pre_task:
-    # INSTRUCTION: Infrastructure validation before task execution.
-    - "terraform fmt -check -recursive"
-    - "tflint --init --config=.tflint.hcl"
-  post_task:
-    # INSTRUCTION: Deployment verification after task completion.
-    - "curl -sf $HEALTH_CHECK_URL/health || exit 1"
-  pre_phase:
-    # INSTRUCTION: Phase-level environment preparation.
-    - "aws ssm get-parameter --name /config/$ENV/api-endpoint"
-  post_phase:
-    # INSTRUCTION: Phase-level integration verification.
-    - "pytest tests/smoke/ -m $ENV --tb=short -q"
-```
-
-### 6.3 Environment-Specific Overrides
+### 11.3 Environment-Specific Overrides
 
 ```yaml
 # INSTRUCTION: Base configuration applies to all environments.
@@ -475,39 +881,35 @@ environments:
   deploy_sequence: true
   require_approval: ["staging", "prod"]
 
-  # INSTRUCTION: Per-environment overrides merge shallowly with base config.
   overrides:
     dev:
       execution:
         mode: auto
-        # INSTRUCTION: Dev runs fully automated.
       validation:
         post_task:
-          - "curl -sf http://dev-internal.example.com/health"
+          - "curl -sf http://dev-internal.[DOMAIN]/health"
     staging:
       execution:
         mode: semi-auto
       validation:
         post_task:
-          - "curl -sf https://staging.example.com/health"
+          - "curl -sf https://staging.[DOMAIN]/health"
     prod:
       execution:
         mode: semi-auto
         max_parallel_tasks: 1
-        # INSTRUCTION: Prod is strictly sequential.
       validation:
         post_task:
-          - "curl -sf https://www.example.com/health"
-          - "python3 scripts/verify_prod_readiness.py"
+          - "curl -sf https://www.[DOMAIN]/health"
 ```
 
 ---
 
-## Section 7: Troubleshooting
+## Section 12: Troubleshooting
 
 <!-- INSTRUCTION: Each entry includes symptom, root cause, and resolution. -->
 
-### 7.1 Common Issues
+### 12.1 Common Issues
 
 | Issue | Cause | Solution |
 |-------|-------|----------|
@@ -515,21 +917,19 @@ environments:
 | Status not updating | `status_tracking.file` path incorrect | Verify path is relative to project root and file exists |
 | Commits not created | `auto_commit` or `auto_stage` is `false` | Set both to `true` for full auto-commit |
 | Branch not found | `branch.name` does not match existing branch | Set `create_if_missing` to `true` or verify name |
-| Validation always fails | Command returns non-zero exit code | Test validation commands manually in target environment |
-| Execution stops unexpectedly | Blocking condition triggered | Review blocking_conditions and check progress log |
-| Parallel tasks interfere | Shared state or file conflicts | Reduce `max_parallel_tasks` to `1` |
-| Environment promotion blocked | Previous env failed validation | Check post_task validation output for preceding env |
-| Commit message rejected | Template non-compliant with `conventional_commits` | Ensure template produces valid conventional format |
-| Progress log not created | `progress_documentation.enabled` is `false` | Set to `true` and verify file path |
+| Sub-Agent timeout | Task too complex or environment issue | Break into smaller tasks; check connectivity |
+| Parallel task conflicts | Shared file modifications | Use `worktree` mode or reduce `max_parallel_tasks` |
+| AC verification fails | Incomplete implementation | Re-dispatch with fix instructions from failure report |
+| Retry limit exceeded | Persistent failure | Investigate root cause manually before re-dispatching |
+| Context pollution | Sub-Agent leaking into Orchestrator | Verify using proper Sub-Agent dispatch, not inline execution |
 
-### 7.2 Debug Mode
+### 12.2 Debug Mode
 
 ```yaml
 # INSTRUCTION: Disable debug mode before merging to main branch.
 debug:
   enabled: true
   log_file: "debug/auto_task_debug.log"
-  # INSTRUCTION: Path relative to project root. Directory must exist.
   verbosity: "detailed"
   # INSTRUCTION: Levels: "minimal" (errors), "standard" (+warnings), "detailed" (full trace).
   include_environment_variables: false
@@ -540,11 +940,91 @@ debug:
 
 ---
 
-**Version**: 1.0
+## Appendix
+
+### A. Quick Reference Card
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│              Sub-Agent Task Automation Quick Reference               │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                     │
+│  Orchestrator Start                                                 │
+│     1. Read Task List                                               │
+│     2. Build dependency graph                                       │
+│     3. Select executable tasks                                      │
+│     4. Construct Sub-Agent Prompt for each task                     │
+│     5. Dispatch via Agent Tool                                      │
+│                                                                     │
+│  Parallel Execution                                                 │
+│     1. Same-level, no-dep tasks → background mode                  │
+│     2. Issue multiple Agent tool calls in one message               │
+│     3. Wait for all background Sub-Agents to complete               │
+│     4. Process results one by one                                   │
+│                                                                     │
+│  Task Complete                                                      │
+│     1. Parse Sub-Agent execution report                             │
+│     2. Verify Acceptance Criteria                                   │
+│     3. Git commit (if Sub-Agent didn't commit)                     │
+│     4. Update Task List status                                      │
+│     5. Select next batch of tasks                                   │
+│                                                                     │
+│  Task Failed                                                        │
+│     1. Analyze Sub-Agent failure report                             │
+│     2. Decide: retry / fix-and-retry / manual intervention         │
+│     3. Max retries ≤ max_retries (default: 2)                      │
+│     4. On limit exceeded, mark FAILED and pause                    │
+│                                                                     │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+### B. Commit Message Convention
+
+```
+<type>(<task-id>): <short description>
+
+<detailed description (optional)>
+
+Task: <TASK-ID>
+```
+
+**Types**: `feat`, `fix`, `docs`, `test`, `refactor`, `chore`
+
+### C. Agent Tool Parameter Reference
+
+```yaml
+# Agent Tool dispatch modes
+foreground:
+  description: "Task short description"
+  prompt: "<full Sub-Agent task Prompt>"
+
+background:
+  description: "Task short description"
+  prompt: "<full Sub-Agent task Prompt>"
+  run_in_background: true
+
+worktree:
+  description: "Task short description"
+  prompt: "<full Sub-Agent task Prompt>"
+  isolation: "worktree"
+
+# Optional subagent_type values
+available_types:
+  general-purpose: "General tasks (default)"
+  python-expert: "Python development"
+  frontend-architect: "Frontend development"
+  quality-engineer: "Testing and quality assurance"
+  security-engineer: "Security-related tasks"
+  refactoring-expert: "Code refactoring"
+```
+
+---
+
+**Version**: 2.0
 <!-- INSTRUCTION: Increment on significant changes. Semantic versioning:
-     Major (2.0): Breaking field changes
-     Minor (1.1): New optional fields
-     Patch (1.0.1): Documentation corrections -->
+     Major (3.0): Breaking field changes
+     Minor (2.1): New optional fields
+     Patch (2.0.1): Documentation corrections -->
 
 **Last Updated**: [DATE]
 <!-- INSTRUCTION: Update this date whenever the configuration is modified. -->
