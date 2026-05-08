@@ -12,7 +12,7 @@
      1. Replace all [PLACEHOLDER] markers with project-specific content.
      2. Copy the YAML configuration block into a file named
         AUTO_TASK_CONFIG.yaml in your project root or .spec/ directory.
-     3. Follow the inline comments (<!-- INSTRUCTION: ... -->) for guidance.
+     3. Follow the inline comments (INSTRUCTION: markers) for guidance.
      4. Validate your configuration using the field reference (Section 3).
      5. Pair this configuration with a Task List document (Template 04).
      ============================================================================ -->

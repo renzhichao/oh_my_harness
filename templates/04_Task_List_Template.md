@@ -9,7 +9,7 @@
 
      HOW TO USE:
      1. Replace all [PLACEHOLDER] markers with project-specific content.
-     2. Follow inline (<!-- INSTRUCTION: ... -->) comments for guidance.
+     2. Follow inline (INSTRUCTION: markers) comments for guidance.
      3. Keep status/priority emoji system consistent:
         Status:  COMPLETED | IN_PROGRESS | PENDING | BLOCKED | CANCELLED
         Priority: HIGH | MEDIUM | LOW

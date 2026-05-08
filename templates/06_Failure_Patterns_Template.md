@@ -8,7 +8,7 @@
 
      HOW TO USE:
      1. Replace all [PLACEHOLDER] markers with project-specific content.
-     2. Follow inline comments (<!-- INSTRUCTION: ... -->) for guidance.
+     2. Follow inline comments (INSTRUCTION: markers) for guidance.
      3. Run Pre-Deployment Checklist (Section 0) before each deployment.
      4. Add new patterns as discovered; update after each environment.
 

@@ -10,7 +10,7 @@
      HOW TO USE THIS TEMPLATE:
      1. Replace all [PLACEHOLDER] markers with project-specific content.
      2. Remove or adapt sections that do not apply to your project.
-     3. Follow the inline comments (<!-- INSTRUCTION: ... -->) for guidance.
+     3. Follow the inline comments (INSTRUCTION: markers) for guidance.
      4. Keep the severity rating system consistent:
         - 🔴 CRITICAL  = Blocks delivery; must be resolved before proceeding
         - 🟡 HIGH      = Required but not immediately blocking; plan to address

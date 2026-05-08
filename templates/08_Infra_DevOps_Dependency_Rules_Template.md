@@ -11,7 +11,7 @@
      HOW TO USE THIS TEMPLATE:
      1. Replace all [PLACEHOLDER] markers with project-specific content.
      2. Remove or adapt sections that do not apply to your project.
-     3. Follow the inline comments (<!-- INSTRUCTION: ... -->) for guidance.
+     3. Follow the inline comments (INSTRUCTION: markers) for guidance.
      4. Maintain the severity rating system consistently:
         - 🔴 HARD BLOCKER  = Deployment cannot proceed until resolved
         - 🟡 SOFT BLOCKER  = Deployment can proceed with documented exception
