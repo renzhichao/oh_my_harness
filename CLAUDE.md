@@ -60,6 +60,12 @@ Templates reference each other and must stay consistent:
 - Failure Patterns (06) is referenced in FIP Section 5 (Risk Assessment)
 - Infra Dependencies (08) constrains FIP Section 1 (Architecture Design)
 
+## Scope Boundaries
+
+- **Automation capability**: Template 07 specifies configuration schemas and prompt templates for automated execution — it does NOT provide a runnable execution engine. Teams must supply their own scheduler, Sub-Agent runtime, state storage, and Git integration.
+- **Domain focus**: Templates are designed for infrastructure and platform engineering (AWS, Terraform, ALB/Fargate, etc.). They do NOT cover AI/ML-specific concerns such as dataset lineage, model versioning, prompt versioning, eval benchmarks, hallucination guardrails, or model rollback. AI projects may use this framework for the engineering management layer, but will need supplementary templates for model/data concerns.
+- **Domain adaptation**: Naming Rules (Template 05) and examples use AWS/IaC patterns. Teams using other cloud providers or non-IaC stacks should treat these as reference patterns and replace domain-specific conventions with their own.
+
 ## License
 
 Proprietary — personal non-commercial learning use only. Copyright (c) 2026 Ren Zhichao. No redistribution or commercial use without written permission.

@@ -199,13 +199,24 @@ Every task must satisfy ALL of the following thresholds:
 
 **Acceptance Criteria**:
 - [ ] [Criterion 1: a specific, testable condition]
+  - Evidence: `[command or artifact that proves completion]`
 - [ ] [Criterion 2: a specific, testable condition]
+  - Evidence: `[command or artifact that proves completion]`
 - [ ] [Criterion 3: a specific, testable condition]
+  - Evidence: `[command or artifact that proves completion]`
 <!-- INSTRUCTION: Acceptance criteria define "done". Each must be:
      - Testable: verifiable with a command, test, or manual check
      - Specific: no ambiguity about what "done" looks like
      - Complete: together they fully define task completion
-     Good: "Terraform plan shows 0 changes after apply"
+     - Evidence-bound: each criterion MUST have a corresponding evidence artifact
+       that a machine or reviewer can independently verify. Evidence types:
+         * Command output: `terraform plan` shows 0 changes
+         * Test result: `pytest test_alb.py` passes with 0 failures
+         * HTTP response: `curl -s https://alb-dns/health` returns 200
+         * Log snapshot: CloudWatch log group shows "service started"
+         * Diff output: `git diff --stat` matches expected file list
+         * Benchmark: latency p99 < 200ms (attach wrk output)
+     Good: "Terraform plan shows 0 changes after apply" + Evidence: `terraform plan`
      Bad:  "Terraform is configured"
      Use checkboxes (- [ ]). Mark as [x] when criterion is met. -->
 

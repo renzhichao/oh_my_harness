@@ -3,10 +3,21 @@
 <!-- ==============================================================================
      INSTRUCTION: SPEC CODING TEMPLATE - AUTO TASK CONFIGURATION (v2)
      ==============================================================================
-     This template defines automated task execution configuration for
+     This template defines a SPECIFICATION for automated task execution in
      infrastructure and platform engineering projects, using a Sub-Agent
-     architecture. Each task runs in an isolated Sub-Agent context, enabling
-     parallel execution, clean context separation, and resumable workflows.
+     architecture. It provides structured configuration schemas and prompt
+     templates — NOT a runnable execution engine.
+
+     IMPORTANT — Capability Boundary:
+     This repository contains documentation templates only. To actually execute
+     tasks automatically, your team must implement or provide:
+     - A task dispatcher/scheduler that parses this YAML configuration
+     - A Sub-Agent runtime (e.g., Claude Code Agent Tool, custom orchestrator)
+     - State storage for task status tracking
+     - An approval/notification service for semi-auto gates
+     - Git integration for commit and branch management
+     This template SPECIFIES the inputs and contracts these components should
+     satisfy; it does NOT provide the components themselves.
 
      HOW TO USE THIS TEMPLATE:
      1. Replace all [PLACEHOLDER] markers with project-specific content.
@@ -268,8 +279,15 @@ branch:
   base_branch: "main"
 
 commit:
-  auto_stage: true | false
-  # INSTRUCTION: When true, stages all changed files automatically.
+  staging_strategy: "task_scope" | "explicit" | "all"
+  # INSTRUCTION: How to stage files before committing.
+  #   task_scope: Stage only files listed in the task's Related Files section.
+  #     SAFEST — ensures commit boundary matches task scope exactly.
+  #   explicit: Stage files specified in each Sub-Agent's "Changed Files" report.
+  #     SAFE — agent declares what it changed, only those are staged.
+  #   all: Stage all changed files (git add -A equivalent).
+  #     RISKY — may include unrelated changes from dirty worktree.
+  #     DO NOT use with multi-agent or shared workspace scenarios.
   conventional_commits: true | false
   message_template: "[type]([scope]): [description]"
   # INSTRUCTION: Tokens: [type], [scope], [description], [task_id]
@@ -303,6 +321,17 @@ environments:
   # INSTRUCTION: When true, dev must succeed before test, test before staging, etc.
   require_approval: ["staging", "prod"]
   # INSTRUCTION: Environments where automation pauses for human confirmation.
+  # NOTE: This defines a PAUSE POINT, not a governance framework. For production-grade
+  # approval control, your team should additionally define:
+  # - WHO has approval authority (role-based, e.g., "Tech Lead + SRE on-call")
+  # - HOW identity is verified (SSO, 2FA, signed approval)
+  # - WHETHER dual approval is required (two authorized approvers)
+  # - WHERE approval records are stored (audit log, Jira ticket, signed commit)
+  # - WHETHER approval is revocable and how rollback is triggered
+  # These governance rules belong in Template 08 (Infra Dependencies) or your
+  # organization's change management policy, not in this configuration file.
+  # Placeholder fields in Template 08 Section 5 (Owner/Change Approval) should be
+  # filled with project-specific governance details.
 
 validation:
   pre_task:
@@ -402,19 +431,21 @@ execution_order:
 ### 6.2 Task Selection Algorithm
 
 ```python
+PRIORITY_ORDER = {"HIGH": 0, "MEDIUM": 1, "LOW": 2}
+
 def get_next_tasks(task_list: List[Task], max_concurrent: int = 3) -> List[Task]:
     """
     Get the next batch of executable tasks (supports parallel dispatch).
 
-    Selection rules:
+    Selection rules (matches Template 04 Execution Rule #1):
     1. Status is PENDING
     2. All dependencies have status COMPLETED
-    3. Sort by task ID (stable ordering)
+    3. Sort by priority (HIGH > MEDIUM > LOW), then by task ID for stable ordering
     4. Do not exceed max_concurrent concurrent tasks
     """
     ready_tasks = []
 
-    for task in sorted(task_list, key=lambda t: t.id):
+    for task in sorted(task_list, key=lambda t: (PRIORITY_ORDER.get(t.priority, 99), t.id)):
         if task.status != TaskStatus.PENDING:
             continue
 
@@ -554,6 +585,10 @@ You are a Task Orchestrator. You dispatch Sub-Agents to execute tasks from the
 Task List in order. You do NOT write code directly — all development work is
 delegated through the Agent Tool.
 
+IMPORTANT: This prompt template is a SPECIFICATION artifact. It defines the
+expected behavior contract for an Orchestrator agent. You must have a compatible
+Agent runtime (e.g., Claude Code with Agent Tool) to execute this specification.
+
 ## Execution Context
 - **Task List Path**: [path/to/task-list.md]
 - **Starting Task ID**: [TASK-001]
@@ -653,7 +688,19 @@ After completion, output a fixed-format execution report:
 
 ### Acceptance Criteria Verification
 - [x] AC1: <description>
+  - Evidence: <command output, test result, URL response, or artifact reference>
 - [ ] AC2: <description> — <reason>
+  - Evidence: N/A (not yet met)
+
+### Evidence Artifacts
+<!-- INSTRUCTION: Attach or reference verifiable proof for each met AC.
+     Supported evidence types:
+     - Command output: paste terminal output or reference log file
+     - Test result: test runner output with pass/fail counts
+     - HTTP response: status code and body from health check
+     - Diff summary: `git diff --stat` output showing expected files changed
+     - Metric snapshot: benchmark result with threshold comparison
+     All evidence MUST be independently reproducible by a reviewer. -->
 
 ### Git Commit
 - Commit ID: <SHA>
@@ -777,6 +824,21 @@ Execution levels:
 | Dependency completeness | Prerequisites must be COMPLETED | Task List status check |
 | Resource limits | Concurrency must not exceed max_concurrent | Orchestrator count |
 | Failure isolation | One failure must not affect others | Each Sub-Agent is independent |
+
+<!-- NOTE: Concurrency Safety Boundary
+     The parallel safety checks above are SPECIFICATION-LEVEL constraints, not
+     runtime-enforced locks. They define the contract that the execution runtime
+     should satisfy. In practice:
+     - File conflict prevention relies on the Agent declaring its change scope
+       honestly and the Orchestrator checking for overlaps before dispatch.
+     - For true file-level isolation, use worktree mode (sub_agent.default_mode: worktree),
+       which provides filesystem-level separation at the cost of merge overhead.
+     - This template does not provide distributed locks, optimistic concurrency control,
+       or transactional file mutations. If your runtime supports these, configure them
+       in your runtime's settings, not in this YAML.
+     Teams running high-concurrency scenarios (>3 parallel agents) should evaluate
+     their runtime's actual conflict resolution capabilities before relying on
+     parallel execution. -->
 
 ---
 

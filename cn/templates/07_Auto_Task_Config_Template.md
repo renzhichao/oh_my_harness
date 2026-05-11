@@ -3,9 +3,18 @@
 <!-- ==============================================================================
      指令: SPEC 编码模板 - 自动任务配置 (v2)
      ==============================================================================
-     本模板定义了基础设施和平台工程项目的自动化任务执行配置，
-     采用 Sub-Agent 架构。每个任务在独立的 Sub-Agent 上下文中执行，
-     支持并行执行、上下文隔离和可恢复的工作流。
+     本模板定义了基础设施和平台工程项目自动化任务执行的**规范配置**，
+     采用 Sub-Agent 架构。它提供结构化的配置模式和 Prompt 模板——
+     而非可运行的执行引擎。
+
+     重要提示 — 能力边界:
+     本仓库仅包含文档模板。要实际执行自动化任务，团队需要实现或提供:
+     - 解析此 YAML 配置的任务调度器/分发器
+     - Sub-Agent 运行时（如 Claude Code Agent Tool、自定义编排器）
+     - 任务状态跟踪的状态存储
+     - 半自动门禁的审批/通知服务
+     - Git 集成（提交和分支管理）
+     本模板**规定**了这些组件应满足的输入和契约；并不提供组件本身。
 
      如何使用本模板:
      1. 将所有 [占位符] 标记替换为项目特定内容。
@@ -265,8 +274,15 @@ branch:
   base_branch: "main"
 
 commit:
-  auto_stage: true | false
-  # 指令: 设为 true 时，自动暂存所有已更改的文件。
+  staging_strategy: "task_scope" | "explicit" | "all"
+  # 指令: 提交前如何暂存文件。
+  #   task_scope: 仅暂存任务"相关文件"章节中列出的文件。
+  #     最安全 — 确保提交边界与任务范围完全一致。
+  #   explicit: 暂存每个 Sub-Agent "变更文件"报告中指定的文件。
+  #     安全 — Agent 声明其变更内容，仅暂存这些文件。
+  #   all: 暂存所有已更改的文件（等同于 git add -A）。
+  #     高风险 — 可能包含脏工作区中的不相关变更。
+  #     不要在多 Agent 或共享工作区场景中使用。
   conventional_commits: true | false
   message_template: "[type]([scope]): [description]"
   # 指令: 可用令牌: [type], [scope], [description], [task_id]
@@ -300,6 +316,16 @@ environments:
   # 指令: 设为 true 时，dev 必须成功才能进入 test，以此类推。
   require_approval: ["staging", "prod"]
   # 指令: 自动化在这些环境中暂停以等待人工确认。
+  # 注意: 这定义的是"暂停点"，而非治理框架。对于生产级别的审批控制，
+  # 团队还需额外定义:
+  # - 谁有审批权（基于角色，如"技术负责人 + SRE 值班人员"）
+  # - 如何验证身份（SSO、2FA、签名审批）
+  # - 是否需要双人审批（两个授权审批人）
+  # - 审批记录存储在哪里（审计日志、Jira 工单、签名提交）
+  # - 审批是否可撤销以及如何触发回滚
+  # 这些治理规则应写在模板 08（基础设施依赖规则）或组织的变更管理策略中，
+  # 而非此配置文件。模板 08 第 5 节的 Owner/Change Approval 占位符
+  # 应填写项目特定的治理细节。
 
 validation:
   pre_task:
@@ -398,19 +424,21 @@ execution_order:
 ### 6.2 任务选择算法
 
 ```python
+PRIORITY_ORDER = {"HIGH": 0, "MEDIUM": 1, "LOW": 2}
+
 def get_next_tasks(task_list: List[Task], max_concurrent: int = 3) -> List[Task]:
     """
     获取下一批可执行的任务（支持并行派发）
 
-    选择规则：
+    选择规则（与模板 04 执行规则 #1 保持一致）：
     1. 状态为 PENDING
     2. 所有前置依赖状态为 COMPLETED
-    3. 按任务 ID 顺序选择（稳定排序）
+    3. 按优先级排序（HIGH > MEDIUM > LOW），同优先级按任务 ID 稳定排序
     4. 不超过 max_concurrent 个并发任务
     """
     ready_tasks = []
 
-    for task in sorted(task_list, key=lambda t: t.id):
+    for task in sorted(task_list, key=lambda t: (PRIORITY_ORDER.get(t.priority, 99), t.id)):
         if task.status != TaskStatus.PENDING:
             continue
 
@@ -549,6 +577,9 @@ task_list_update:
 你是任务编排器（Orchestrator），负责按任务列表顺序派发 Sub-Agent 执行任务。
 你不直接编写代码，而是通过 Agent Tool 委托 Sub-Agent 执行。
 
+重要提示: 此 Prompt 模板是一个规范制品。它定义了 Orchestrator Agent 的预期行为契约。
+你需要一个兼容的 Agent 运行时（如带 Agent Tool 的 Claude Code）才能执行此规范。
+
 ## 执行上下文
 - **任务列表路径**: [path/to/task-list.md]
 - **起始任务 ID**: [TASK-001]
@@ -647,7 +678,19 @@ task_list_update:
 
 ### Acceptance Criteria 验证
 - [x] AC1: <描述>
+  - 证据: <命令输出、测试结果、URL 响应或制品引用>
 - [ ] AC2: <描述> — <未完成原因>
+  - 证据: N/A（尚未满足）
+
+### 证据制品
+<!-- 指令: 为每条已满足的 AC 附上或引用可验证的证明。
+     支持的证据类型:
+     - 命令输出: 粘贴终端输出或引用日志文件
+     - 测试结果: 测试运行器输出（含通过/失败计数）
+     - HTTP 响应: 健康检查的状态码和响应体
+     - Diff 摘要: `git diff --stat` 输出（显示预期变更文件）
+     - 指标快照: 基准测试结果（含阈值对比）
+     所有证据必须可由审阅者独立复现。 -->
 
 ### Git 提交
 - Commit ID: <SHA>
@@ -771,6 +814,19 @@ Agent Call 2:
 | 依赖完整 | 前置任务必须 COMPLETED | 任务列表状态检查 |
 | 资源限制 | 并发不超过 max_concurrent | Orchestrator 计数 |
 | 失败隔离 | 一个失败不影响其他 | 各 Sub-Agent 独立 |
+
+<!-- 注意: 并发安全边界
+     上面的并行安全检查是规范级约束，不是运行时强制的锁。
+     它们定义了执行运行时应满足的契约。实际上:
+     - 文件冲突预防依赖 Agent 诚实地声明其变更范围，
+       Orchestrator 在派发前检查重叠。
+     - 要实现真正的文件级隔离，使用 worktree 模式
+       (sub_agent.default_mode: worktree)，它在文件系统级别提供隔离，
+       代价是合并开销。
+     - 本模板不提供分布式锁、乐观并发控制或事务性文件变更。
+       如果运行时支持这些能力，请在运行时设置中配置，而非此 YAML。
+     运行高并发场景（>3 个并行 Agent）的团队，应在依赖并行执行前
+     评估其运行时的实际冲突解决能力。 -->
 
 ---
 

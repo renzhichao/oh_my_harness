@@ -74,7 +74,7 @@ In addition to the four-document pipeline, four supporting documents provide cro
 |----------|------|-------------|
 | **Naming Rules** (05) | Standardize resource naming across all environments | Referenced during any resource creation |
 | **Failure Patterns** (06) | Document known failure modes and recovery procedures | Referenced during FIP risk assessment |
-| **AUTO_TASK_CONFIG** (07) | Configure automated task execution with validation gates | Applied after Task List is finalized |
+| **AUTO_TASK_CONFIG** (07) | Specification schema for automated task execution with validation gates | Applied after Task List is finalized |
 | **Infra Dependencies** (08) | Define environment promotion, component dependencies, blockers | Referenced during FIP architecture design |
 
 ```
@@ -88,7 +88,7 @@ In addition to the four-document pipeline, four supporting documents provide cro
                          │  │ 06: Failure Patterns │ │──── Referenced in FIP Section 5
                          │  └─────────────────────┘ │
                          │  ┌─────────────────────┐ │
-                         │  │ 07: AUTO_TASK_CONFIG │ │──── Drives execution of Task List
+                         │  │ 07: AUTO_TASK_CONFIG │ │──── Specifies execution of Task List
                          │  └─────────────────────┘ │
                          │  ┌─────────────────────┐ │
                          │  │ 08: Infra Dependencies│ │──── Constrains FIP Section 1
@@ -320,7 +320,7 @@ Templates reference each other throughout the pipeline:
 
 05: Naming Rules ──► Applied across ALL templates
 06: Failure Patterns ──► Referenced in FIP Section 5 (Risk Assessment)
-07: AUTO_TASK_CONFIG ──► Drives execution of Template 04
+07: AUTO_TASK_CONFIG ──► Specifies execution contract for Template 04
 08: Infra Dependencies ──► Constrains FIP Section 1 (Architecture Design)
 ```
 
@@ -429,7 +429,7 @@ spec-coding-templates/
 
 ### Template 07: AUTO_TASK_CONFIG (~550 lines)
 - **Sections**: Configuration Template (YAML), Field Reference, Usage Examples, Integration with Task List, Customization Guide, Troubleshooting
-- **Key Deliverable**: YAML configuration driving automated task execution
+- **Key Deliverable**: YAML configuration schema specifying automated task execution contracts (requires external runtime to execute)
 
 ### Template 08: Infra/DevOps Dependencies (~654 lines)
 - **Sections**: Environment Dependency Rules, Component Dependencies, Cross-Service Rules, Deployment Blockers, Naming & Tagging Dependencies, Validation Checklists, Common Patterns
