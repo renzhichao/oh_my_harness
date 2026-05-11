@@ -2,7 +2,7 @@
 
 > A structured specification system for infrastructure and platform engineering projects.
 
-**Version**: 1.0 | **Last Updated**: 2025-04-10 | **Templates**: 8 documents, ~6,500 lines
+**Version**: 1.1 | **Last Updated**: 2026-05-11 | **Templates**: 8 documents, ~7,000 lines
 
 ---
 
@@ -105,13 +105,13 @@ In addition to the four-document pipeline, four supporting documents provide cro
 | 01 | GAP Analysis | `templates/01_GAP_Analysis_Template.md` | ~1,073 | Baseline current state, identify gaps, justify investment |
 | 02 | Requirements | `templates/02_Requirements_Template.md` | ~1,022 | Define functional, non-functional, infra, and integration requirements |
 | 03 | Feature Implementation Plan | `templates/03_FIP_Template.md` | ~990 | Detailed technical design with architecture diagrams and implementation plan |
-| 04 | Task List | `templates/04_Task_List_Template.md` | ~843 | Break implementation into phased tasks with dependencies and effort estimates |
+| 04 | Task List | `templates/04_Task_List_Template.md` | ~927 | Break implementation into phased tasks with granularity thresholds, complexity ratings, and effort estimates |
 | 05 | Naming Rules | `templates/05_Naming_Rules_Template.md` | ~685 | Standardize resource naming conventions across all environments |
 | 06 | Failure Patterns | `templates/06_Failure_Patterns_Template.md` | ~650 | Document known failure modes, root causes, and recovery procedures |
 | 07 | AUTO_TASK_CONFIG | `templates/07_Auto_Task_Config_Template.md` | ~550 | YAML configuration for automated task execution with validation gates |
 | 08 | Infra/DevOps Dependencies | `templates/08_Infra_DevOps_Dependency_Rules_Template.md` | ~654 | Environment promotion rules, component dependencies, deployment blockers |
 
-**Total**: ~6,500 lines of structured specification templates.
+**Total**: ~7,000 lines of structured specification templates.
 
 ---
 
@@ -415,9 +415,9 @@ spec-coding-templates/
 - **Sections**: Architecture Design (Mermaid), Detailed Design, Security Design, Performance Design, Risk Assessment, Implementation Plan, Testing Strategy, Monitoring, Rollout Plan
 - **Key Deliverable**: Complete technical design ready for implementation
 
-### Template 04: Task List (~843 lines)
-- **Sections**: Phase breakdown, Task tables with dependencies, Effort estimation, Critical path, Acceptance criteria per phase
-- **Key Deliverable**: Actionable task list with clear ownership and ordering
+### Template 04: Task List (~927 lines)
+- **Sections**: Task Granularity Standards (LOC/effort/complexity thresholds), Phase breakdown, Task tables with dependencies, Effort and complexity estimation, Decomposition rules, Critical path, Acceptance criteria per phase
+- **Key Deliverable**: Actionable task list with granularity enforcement — any task exceeding 500 LOC, 4 person-hours, or HIGH complexity must be decomposed into subtasks
 
 ### Template 05: Naming Rules (~685 lines)
 - **Sections**: General Principles, Resource Naming Rules (10 resource types), Environment Suffix Rules, Tagging Standards, Validation Script, Migration Guide
@@ -441,8 +441,8 @@ spec-coding-templates/
 
 | Field | Value |
 |-------|-------|
-| **Version** | 1.0 |
-| **Last Updated** | 2025-04-10 |
+| **Version** | 1.1 |
+| **Last Updated** | 2026-05-11 |
 | **Maintainer** | Platform Engineering Team |
 | **License** | Internal Use |
 

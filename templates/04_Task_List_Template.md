@@ -13,8 +13,9 @@
      3. Keep status/priority emoji system consistent:
         Status:  COMPLETED | IN_PROGRESS | PENDING | BLOCKED | CANCELLED
         Priority: HIGH | MEDIUM | LOW
-     4. Every task MUST have: Status, Priority, Estimated Time, Description,
-        Acceptance Criteria, Related Files, Commit Message, Dependencies.
+     4. Every task MUST have: Status, Priority, Estimated Time, Estimated LOC,
+        Complexity, Description, Acceptance Criteria, Related Files, Commit Message,
+        Dependencies.
      5. Number tasks sequentially within each phase (e.g., 1.1, 1.2, 2.1).
      ============================================================================ -->
 
@@ -74,6 +75,8 @@
 <!-- INSTRUCTION: Remove this rule if automated testing is not required. -->
 7. Deploy to environments in order: dev -> test -> staging -> prod
 <!-- INSTRUCTION: Remove for single-environment projects. NEVER skip environments. -->
+8. Any task exceeding granularity thresholds (500 LOC, 4 person-hours, or HIGH complexity) must be decomposed into subtasks before execution begins
+<!-- INSTRUCTION: See Task Granularity Standards section for decomposition rules. -->
 
 ---
 
@@ -110,6 +113,50 @@
 
 ---
 
+## Task Granularity Standards
+
+<!-- INSTRUCTION: These thresholds define the maximum acceptable size for a single
+     task. If ANY threshold is exceeded during estimation, the task MUST be
+     decomposed into subtasks until all subtasks fall within limits.
+     Rationale: Smaller tasks reduce risk, improve estimate accuracy, enable
+     parallel execution, and provide finer-grained progress tracking. -->
+
+Every task must satisfy ALL of the following thresholds:
+
+| Dimension | Threshold | Exceeded Action |
+|-----------|-----------|-----------------|
+| Estimated LOC | ≤ 500 lines | Decompose into subtasks |
+| Estimated Effort | ≤ 4 person-hours (0.5 person-days) | Decompose into subtasks |
+| Complexity | LOW or MEDIUM | Decompose into subtasks |
+
+### Complexity Rating
+
+| Rating | Criteria | Examples |
+|--------|----------|----------|
+| LOW | Single resource, single config, well-documented pattern | Add a tag, create an IAM policy, update a variable |
+| MEDIUM | Multiple resources, cross-component interaction, requires design judgment | Provision ALB + target group, configure VPC Link integration |
+| HIGH | Multi-service orchestration, novel architecture, security-sensitive, or unclear requirements | Zero-downtime migration, multi-region failover, custom auth flow |
+
+### Decomposition Rules
+
+1. If a task exceeds ANY threshold (LOC > 500, effort > 4h, or complexity = HIGH), it MUST be split into subtasks
+2. Each subtask must independently satisfy all thresholds
+3. Decomposed subtasks use the parent task ID with a letter suffix (e.g., Task 1.2 → Task 1.2a, Task 1.2b, Task 1.2c)
+4. The parent task becomes a tracking wrapper with its own acceptance criteria covering all subtasks
+5. All subtasks must be completable in a single work session (≤ 4 hours)
+
+<!-- INSTRUCTION: Example decomposition:
+     ORIGINAL Task 1.2 (exceeds thresholds):
+       Estimated LOC: 800 | Effort: 8h | Complexity: HIGH
+       Description: "Provision complete ALB infrastructure with listeners, target groups, health checks, and WAF"
+
+     DECOMPOSED into:
+       Task 1.2a: Provision ALB and base listener (LOC: ~200, 2h, MEDIUM)
+       Task 1.2b: Configure target groups and health checks (LOC: ~150, 1.5h, MEDIUM)
+       Task 1.2c: Attach WAF rules and security headers (LOC: ~150, 1.5h, MEDIUM) -->
+
+---
+
 <!-- INSTRUCTION: PHASE STRUCTURE GUIDANCE
      Phase 0: Pre-Development Setup (environment, tooling, documentation)
      Phase 1: Core Implementation (primary feature or infrastructure build)
@@ -137,7 +184,14 @@
      work. Use the red circle emoji for HIGH. -->
 **Estimated Time**: [X hours]
 <!-- INSTRUCTION: Realistic estimate with buffer. Round up to nearest half-hour.
-     Example: "1.5 hours", "2 hours", "1 day". -->
+     Example: "1.5 hours", "2 hours", "1 day". Must be ≤ 4 hours. -->
+**Estimated LOC**: [X lines]
+<!-- INSTRUCTION: Estimated lines of code to be written/modified. Must be ≤ 500.
+     For infrastructure-as-code, count resource blocks + config lines.
+     For documentation-only tasks, use "N/A (docs)". -->
+**Complexity**: [LOW | MEDIUM | HIGH]
+<!-- INSTRUCTION: Per Task Granularity Standards. If HIGH, decompose into subtasks.
+     LOW: single resource/config. MEDIUM: multi-resource interaction. HIGH: see table. -->
 **Description**: [What this task does and why it is needed]
 <!-- INSTRUCTION: Write 2-3 sentences: what it accomplishes, why it is needed
      (context), and any important constraints. Be specific enough for someone
@@ -183,6 +237,8 @@
 **Status**: PENDING
 **Priority**: HIGH
 **Estimated Time**: [X hours]
+**Estimated LOC**: [X lines]
+**Complexity**: [LOW | MEDIUM | HIGH]
 **Description**: [Detailed description of tooling or configuration setup]
 
 **Acceptance Criteria**:
@@ -205,6 +261,8 @@
 **Status**: PENDING
 **Priority**: MEDIUM
 **Estimated Time**: [X hours]
+**Estimated LOC**: [X lines]
+**Complexity**: [LOW | MEDIUM | HIGH]
 **Description**: [Detailed description of documentation or guidelines to create]
 
 **Acceptance Criteria**:
@@ -258,6 +316,8 @@
 **Status**: PENDING
 **Priority**: HIGH
 **Estimated Time**: [X hours]
+**Estimated LOC**: [X lines]
+**Complexity**: [LOW | MEDIUM | HIGH]
 **Description**: [Detailed description of the core infrastructure task]
 
 **Acceptance Criteria**:
@@ -292,6 +352,8 @@ terraform init && terraform plan && terraform apply
 **Status**: PENDING
 **Priority**: HIGH
 **Estimated Time**: [X hours]
+**Estimated LOC**: [X lines]
+**Complexity**: [LOW | MEDIUM | HIGH]
 **Description**: [Detailed description of the configuration task]
 
 **Acceptance Criteria**:
@@ -318,6 +380,8 @@ terraform init && terraform plan && terraform apply
 **Status**: PENDING
 **Priority**: HIGH
 **Estimated Time**: [X hours]
+**Estimated LOC**: [X lines]
+**Complexity**: [LOW | MEDIUM | HIGH]
 **Description**: [Detailed description of the integration work]
 
 **Acceptance Criteria**:
@@ -340,6 +404,8 @@ terraform init && terraform plan && terraform apply
 **Status**: PENDING
 **Priority**: MEDIUM
 **Estimated Time**: [X hours]
+**Estimated LOC**: [X lines]
+**Complexity**: [LOW | MEDIUM | HIGH]
 **Description**: [Detailed description of validation and testing work]
 
 **Acceptance Criteria**:
@@ -386,6 +452,8 @@ terraform init && terraform plan && terraform apply
 **Status**: PENDING
 **Priority**: HIGH
 **Estimated Time**: [X hours]
+**Estimated LOC**: [X lines]
+**Complexity**: [LOW | MEDIUM | HIGH]
 <!-- INSTRUCTION: Deployment tasks need environment-specific acceptance criteria.
      Common checks: terraform apply succeeds, health check returns 200,
      service reachable from expected networks, logs flowing, auto-scaling active. -->
@@ -418,6 +486,8 @@ curl -s https://dev.[service-endpoint]/health | jq .
 **Status**: PENDING
 **Priority**: HIGH
 **Estimated Time**: [X hours]
+**Estimated LOC**: [X lines]
+**Complexity**: [LOW | MEDIUM | HIGH]
 **Description**: Deploy infrastructure to the test environment with integration validation
 
 **Acceptance Criteria**:
@@ -443,6 +513,8 @@ curl -s https://dev.[service-endpoint]/health | jq .
 **Status**: PENDING
 **Priority**: HIGH
 **Estimated Time**: [X hours]
+**Estimated LOC**: [X lines]
+**Complexity**: [LOW | MEDIUM | HIGH]
 **Description**: Deploy to staging with production-parity validation
 
 **Acceptance Criteria**:
@@ -468,6 +540,8 @@ curl -s https://dev.[service-endpoint]/health | jq .
 **Status**: PENDING
 **Priority**: HIGH
 **Estimated Time**: [X hours]
+**Estimated LOC**: [X lines]
+**Complexity**: [LOW | MEDIUM | HIGH]
 **Description**: Production deployment with monitoring validation
 
 **Acceptance Criteria**:
@@ -523,6 +597,8 @@ terraform apply -state=environments/prod/terraform.tfstate [previous-version]
 **Status**: PENDING
 **Priority**: HIGH
 **Estimated Time**: [X hours]
+**Estimated LOC**: [X lines]
+**Complexity**: [LOW | MEDIUM | HIGH]
 **Description**: Validate end-to-end data flow across all integrated components
 
 **Acceptance Criteria**:
@@ -545,6 +621,8 @@ terraform apply -state=environments/prod/terraform.tfstate [previous-version]
 **Status**: PENDING
 **Priority**: MEDIUM
 **Estimated Time**: [X hours]
+**Estimated LOC**: [X lines]
+**Complexity**: [LOW | MEDIUM | HIGH]
 **Description**: Run full regression test suite across all environments
 
 **Acceptance Criteria**:
@@ -584,6 +662,8 @@ terraform apply -state=environments/prod/terraform.tfstate [previous-version]
 **Status**: PENDING
 **Priority**: HIGH
 **Estimated Time**: [X hours]
+**Estimated LOC**: [X lines]
+**Complexity**: [LOW | MEDIUM | HIGH]
 **Description**: Create monitoring dashboards and configure alerts for production
 
 **Acceptance Criteria**:
@@ -607,6 +687,8 @@ terraform apply -state=environments/prod/terraform.tfstate [previous-version]
 **Status**: PENDING
 **Priority**: MEDIUM
 **Estimated Time**: [X hours]
+**Estimated LOC**: [X lines]
+**Complexity**: [LOW | MEDIUM | HIGH]
 **Description**: Create operational runbooks and architecture documentation
 
 **Acceptance Criteria**:
@@ -630,6 +712,8 @@ terraform apply -state=environments/prod/terraform.tfstate [previous-version]
 **Status**: PENDING
 **Priority**: LOW
 **Estimated Time**: [X hours]
+**Estimated LOC**: [X lines]
+**Complexity**: [LOW | MEDIUM | HIGH]
 **Description**: Create comprehensive project summary with metrics and lessons learned
 
 **Acceptance Criteria**:
@@ -663,14 +747,14 @@ terraform apply -state=environments/prod/terraform.tfstate [previous-version]
 <!-- INSTRUCTION: High-level summary table. Update as tasks complete.
      "Actual Time" filled during execution. Status uses legend emojis. -->
 
-| Phase | Tasks | Estimated Time | Actual Time | Status |
-|-------|-------|----------------|-------------|--------|
-| Phase 0: Pre-Development Setup | 3 | [X] hours | [X] hours | PENDING |
-| Phase 1: Infrastructure Foundation | 4 | [X] hours | [X] hours | PENDING |
-| Phase 2: Multi-Environment Deployment | 4 | [X] hours | [X] hours | PENDING |
-| Phase 3: Integration | 2 | [X] hours | [X] hours | PENDING |
-| Phase 4: Monitoring and Documentation | 3 | [X] hours | [X] hours | PENDING |
-| **Total** | **16** | **[X] hours** | **[X] hours** | **PENDING** |
+| Phase | Tasks | Estimated Time | Estimated LOC | Complexity | Actual Time | Status |
+|-------|-------|----------------|---------------|------------|-------------|--------|
+| Phase 0: Pre-Development Setup | 3 | [X] hours | [X] lines | [MAX] | [X] hours | PENDING |
+| Phase 1: Infrastructure Foundation | 4 | [X] hours | [X] lines | [MAX] | [X] hours | PENDING |
+| Phase 2: Multi-Environment Deployment | 4 | [X] hours | [X] lines | [MAX] | [X] hours | PENDING |
+| Phase 3: Integration | 2 | [X] hours | [X] lines | [MAX] | [X] hours | PENDING |
+| Phase 4: Monitoring and Documentation | 3 | [X] hours | [X] lines | [MAX] | [X] hours | PENDING |
+| **Total** | **16** | **[X] hours** | **[X] lines** | **—** | **[X] hours** | **PENDING** |
 
 ---
 

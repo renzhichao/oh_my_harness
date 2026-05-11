@@ -25,7 +25,7 @@ Templates are used sequentially; each builds on the previous:
 Four supporting templates apply cross-cutting:
 - **05_Naming_Rules** — Resource naming standards (referenced by all templates)
 - **06_Failure_Patterns** — Known failure modes (referenced in FIP Section 5)
-- **07_Auto_Task_Config** — YAML config driving automated task execution
+- **07_Auto_Task_Config** — YAML config driving automated task execution via Sub-Agent architecture (v2)
 - **08_Infra_DevOps_Dependency_Rules** — Environment promotion and deployment safety rules
 
 ## Template Conventions
@@ -42,12 +42,24 @@ All templates share these patterns:
 
 When editing templates or documentation:
 
-- Maintain bilingual parity — changes to English content under `templates/` or `examples/` should be reflected in `cn/`
+- Maintain bilingual parity — changes to English content under `templates/` or `examples/` must be reflected in `cn/` (same directory structure, same filenames). After editing English files, verify `cn/` counterparts exist and update them.
 - Keep the severity/status marker systems consistent across all documents
 - Preserve the `<!-- INSTRUCTION: -->` comment format in templates
 - Use Mermaid diagram syntax for architecture visuals in the FIP template
 - Template numbering (01–08) must remain stable; they are cross-referenced throughout
+- Template 07 (Auto Task Config) uses a v2 Sub-Agent architecture — tasks run in isolated Sub-Agent contexts with parallel execution support
+
+## Cross-Template References
+
+Templates reference each other and must stay consistent:
+- GAP Analysis gaps → Requirements (gap IDs become FR- IDs)
+- Requirements → FIP (FR- IDs drive architecture decisions)
+- FIP → Task List (implementation plan → phased tasks)
+- Task List → Auto Task Config (tasks drive automation YAML)
+- Naming Rules (05) applies to ALL resource references across every template
+- Failure Patterns (06) is referenced in FIP Section 5 (Risk Assessment)
+- Infra Dependencies (08) constrains FIP Section 1 (Architecture Design)
 
 ## License
 
-Proprietary — personal non-commercial learning use only. No redistribution or commercial use without written permission.
+Proprietary — personal non-commercial learning use only. Copyright (c) 2026 Ren Zhichao. No redistribution or commercial use without written permission.
