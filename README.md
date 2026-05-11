@@ -2,7 +2,7 @@
 
 > A structured specification system for infrastructure and platform engineering projects.
 
-**Version**: 1.1 | **Last Updated**: 2026-05-11 | **Templates**: 8 documents, ~7,000 lines
+**Version**: 1.2 | **Last Updated**: 2026-05-11 | **Templates**: 8 documents, ~7,000 lines
 
 ---
 
@@ -441,7 +441,7 @@ spec-coding-templates/
 
 | Field | Value |
 |-------|-------|
-| **Version** | 1.1 |
+| **Version** | 1.2 |
 | **Last Updated** | 2026-05-11 |
 | **Maintainer** | Platform Engineering Team |
 | **License** | Internal Use |
