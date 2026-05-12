@@ -80,6 +80,69 @@
 
 ---
 
+## Status Update Protocol
+
+<!-- INSTRUCTION: This protocol is MANDATORY for both automated and manual execution.
+     It addresses a known failure mode: agents complete and commit tasks but do not
+     update the Task List, leaving stale state that breaks automated pipelines and
+     prevents accurate progress tracking. This section is a HARD REQUIREMENT —
+     violating it is equivalent to skipping a validation gate. -->
+
+After ANY task reaches a terminal state (COMPLETED, FAILED, BLOCKED, CANCELLED),
+the executing agent (Orchestrator, Sub-Agent, or single Coding Agent) MUST perform
+the following updates **before starting the next task**:
+
+### Mandatory Update Sequence
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                Task Status Update Checklist                  │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  □ Step 1: Update Task Status field                         │
+│     Change **Status**: PENDING → new state                  │
+│     (COMPLETED | FAILED | BLOCKED | CANCELLED)              │
+│                                                             │
+│  □ Step 2: Mark Acceptance Criteria                         │
+│     Update [ ] → [x] for each met criterion                 │
+│     Add reason for any unmet criterion                      │
+│                                                             │
+│  □ Step 3: Record Commit SHA                                │
+│     Add commit ID after task's Commit Message field          │
+│     Format: `Committed: <SHA>` on a new line                │
+│                                                             │
+│  □ Step 4: Update Summary Statistics                        │
+│     Recalculate completion counts and progress percentage   │
+│                                                             │
+│  □ Step 5: Verify                                           │
+│     Read back the updated task to confirm changes persisted │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Status Update Timing Rules
+
+| Event | Required Action | Maximum Delay |
+|-------|----------------|---------------|
+| Task completed and committed | Update to COMPLETED + record commit SHA | **Before starting next task** |
+| Task failed | Update to FAILED + record failure reason | **Immediately** |
+| Task blocked by dependency | Update to BLOCKED + record blocker description | **Before moving to alternate task** |
+| Phase checkpoint reached | Update all phase statistics | **Before starting next phase** |
+
+### Anti-Pattern: Commit-Without-Update
+
+❌ **Wrong**: Complete task → commit code → start next task → (Task List never updated)
+
+✅ **Right**: Complete task → commit code → **update Task List** → **verify update persisted** → start next task
+
+<!-- INSTRUCTION: When using AUTO_TASK_CONFIG (Template 07), the Orchestrator agent
+     is responsible for executing this protocol after each Sub-Agent returns. When a
+     single Coding Agent executes tasks without an Orchestrator, the Coding Agent itself
+     must execute this protocol. In both cases, status update is a hard gate — no task
+     dispatch should occur while the previous task's status remains stale. -->
+
+---
+
 ## Task Status Legend
 <!-- INSTRUCTION: Use these status markers consistently. Update task status
      in real-time as work progresses. -->

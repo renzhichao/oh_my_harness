@@ -8,7 +8,7 @@ A **documentation-only** collection of structured specification templates ("Spec
 
 ## Repository Structure
 
-- `templates/` — 8 blank templates forming the Spec Coding pipeline
+- `templates/` — 8 blank templates forming the Spec Coding pipeline (~7,000 lines total)
 - `examples/` — Filled versions of templates 01–04 for a reference project (ALB + Fargate Java service, Issue #1880)
 - `cn/` — Full Chinese translation (`cn/README.md`, `cn/templates/`, `cn/examples/`)
 - `README.md` — Comprehensive usage guide and methodology reference
@@ -36,7 +36,17 @@ All templates share these patterns:
 - `<!-- INSTRUCTION: ... -->` HTML comments guiding fill-in; removed after completion
 - Severity ratings: `🔴 CRITICAL` (blocks delivery), `🟡 HIGH` (required), `🟢 MEDIUM` (deferrable)
 - Status markers: `✅` done, `❌` pending, `🔄` in progress, `⏳` blocked, `🚫` cancelled
+- Document lifecycle: `Draft → Under Review → Approved → Implementation In Progress → Complete`
 - Filled file naming: `{TYPE}_{project_name}.md` (e.g., `GAP_ALB_Fargate_java_service.md`)
+
+## Task Granularity Standards (Template 04)
+
+Task List enforces decomposition thresholds — any task exceeding these must be split into subtasks:
+- **LOC**: >500 lines → decompose
+- **Effort**: >4 person-hours → decompose
+- **Complexity**: HIGH → decompose unless justified
+
+Each task must include: Status, Priority, Estimated Time, Estimated LOC, Complexity, Description, Acceptance Criteria, Related Files, Commit Message, and Dependencies.
 
 ## Making Changes
 

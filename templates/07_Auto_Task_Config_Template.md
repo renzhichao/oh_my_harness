@@ -475,6 +475,39 @@ def get_next_tasks(task_list: List[Task], max_concurrent: int = 3) -> List[Task]
 | Single simple task | foreground | No complex isolation needed |
 | Batch test writing | background | Parallelizable, no inter-dependencies |
 
+### 6.4 Status Update Enforcement
+
+<!-- INSTRUCTION: Status updates are a hard gate in the dispatch loop, not a
+     best-effort hint. Failure to update the Task List after each task is the
+     most common operational failure in automated execution. -->
+
+**Rule**: No task dispatch may occur while the previous task's status in the Task List remains stale.
+
+```yaml
+status_update_enforcement:
+  mandatory_update_points:
+    - point: "After Sub-Agent returns SUCCESS"
+      action: "Update task to COMPLETED before selecting next task"
+      blocking: true  # Orchestrator MUST NOT proceed until update is verified
+
+    - point: "After Sub-Agent returns FAILED"
+      action: "Update task to FAILED with reason before retry or abort"
+      blocking: true
+
+    - point: "After Orchestrator commits on behalf of Sub-Agent"
+      action: "Record commit SHA in task status before proceeding"
+      blocking: true
+
+  verification:
+    method: "Read back the Task List after write to confirm update persisted"
+    on_failure: "Retry write, then abort if still failing"
+```
+
+**Orchestrator Hard Gate**: The dispatch loop MUST NOT advance to the next task until:
+1. The Task List file has been written with the updated status
+2. The write has been verified by reading back the file
+3. The Summary Statistics section (in the Task List) has been recalculated
+
 ---
 
 ## Section 7: Task List Integration
@@ -507,6 +540,8 @@ task_list_update:
       - status: "FAILED"
       - failure_reason: "failure cause"
 ```
+
+> **⚠️ Known Failure Mode**: Agents frequently commit task code but skip the Task List status update, causing stale state. The `status_update.update_frequency: "after_each_task"` setting is NOT sufficient on its own — the Orchestrator or Coding Agent must treat status update as a hard gate in the dispatch loop (see Section 6.4). When `status_tracking.file` is set, the agent MUST write to that file and verify the write before dispatching the next task.
 
 ### 7.2 Task State Machine
 
@@ -608,7 +643,13 @@ Repeat until all tasks are complete:
    - Has downstream dependents → foreground (wait for completion)
    - No downstream dependents → background (parallel execution)
 4. **Process Results**: Parse Sub-Agent execution report
-5. **Update Status**: Update Task List
+5. **Update Task List Status** (HARD GATE — must complete before next dispatch):
+   a. Change task **Status** field to COMPLETED / FAILED / BLOCKED
+   b. Mark each Acceptance Criteria checkbox: `[ ]` → `[x]` or note reason unmet
+   c. Record commit SHA: add `Committed: <SHA>` after the task's Commit Message
+   d. Recalculate Summary Statistics (completion counts, progress %)
+   e. Read back the task to verify the write persisted
+   f. Only after verification passes, proceed to next task dispatch
 6. **Git Commit**: If Sub-Agent did not commit, commit on its behalf
 
 ### Step 3: Output Summary Report
@@ -616,7 +657,7 @@ Repeat until all tasks are complete:
 ## Constraints
 1. Do NOT write code or modify files (Task List updates excepted)
 2. All development work is done by Sub-Agents
-3. Update Task List immediately after each Sub-Agent returns
+3. **HARD GATE**: Update Task List IMMEDIATELY after each Sub-Agent returns — no next dispatch until status is verified written (see Section 6.4)
 4. On FAILED tasks, analyze cause and decide whether to retry
 5. Do not exceed max_concurrent parallel Sub-Agents
 ```
@@ -1024,12 +1065,13 @@ debug:
 │     3. Wait for all background Sub-Agents to complete               │
 │     4. Process results one by one                                   │
 │                                                                     │
-│  Task Complete                                                      │
+│  Task Complete (HARD GATE — must finish before next dispatch)       │
 │     1. Parse Sub-Agent execution report                             │
 │     2. Verify Acceptance Criteria                                   │
 │     3. Git commit (if Sub-Agent didn't commit)                     │
-│     4. Update Task List status                                      │
-│     5. Select next batch of tasks                                   │
+│     4. Update Task List status + AC + commit SHA + statistics      │
+│     5. Verify Task List write persisted (read back)                 │
+│     6. Select next batch of tasks                                   │
 │                                                                     │
 │  Task Failed                                                        │
 │     1. Analyze Sub-Agent failure report                             │

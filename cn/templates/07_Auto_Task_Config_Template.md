@@ -468,6 +468,38 @@ def get_next_tasks(task_list: List[Task], max_concurrent: int = 3) -> List[Task]
 | 单一简单任务 | foreground | 无需复杂隔离 |
 | 大批量测试编写 | background | 可并行，互不依赖 |
 
+### 6.4 状态更新强制执行
+
+<!-- 指令: 状态更新是循环派发中的硬性门禁，而非尽力而为的提示。
+     任务完成后不更新任务列表是自动化执行中最常见的运行故障。 -->
+
+**规则**: 在任务列表中前一个任务的状态仍为陈旧状态时，不得派发新任务。
+
+```yaml
+status_update_enforcement:
+  mandatory_update_points:
+    - point: "Sub-Agent 返回 SUCCESS 后"
+      action: "在选择下一个任务之前将任务更新为 COMPLETED"
+      blocking: true  # Orchestrator 在验证更新前不得继续
+
+    - point: "Sub-Agent 返回 FAILED 后"
+      action: "在重试或中止前将任务更新为 FAILED 并记录原因"
+      blocking: true
+
+    - point: "Orchestrator 代替 Sub-Agent 提交后"
+      action: "在继续之前将 commit SHA 记录到任务状态"
+      blocking: true
+
+  verification:
+    method: "写入后回读任务列表以确认更新已持久化"
+    on_failure: "重试写入，仍然失败则中止"
+```
+
+**Orchestrator 硬性门禁**: 循环派发在以下条件全部满足前不得推进到下一个任务:
+1. 任务列表文件已写入更新后的状态
+2. 写入已通过回读文件验证
+3. 汇总统计节（在任务列表中）已重新计算
+
 ---
 
 ## 第 7 节: 与任务列表集成
@@ -500,6 +532,8 @@ task_list_update:
       - status: "FAILED"
       - failure_reason: "失败原因"
 ```
+
+> **⚠️ 已知故障模式**: Agent 经常提交任务代码但跳过任务列表状态更新，导致状态陈旧。`status_update.update_frequency: "after_each_task"` 设置本身不足以防止此问题 — Orchestrator 或 Coding Agent 必须将状态更新视为循环派发中的硬性门禁（见第 6.4 节）。当设置了 `status_tracking.file` 时，Agent 必须写入该文件并验证写入成功，然后才能派发下一个任务。
 
 ### 7.2 任务状态机
 
@@ -599,7 +633,13 @@ task_list_update:
    - 有后续依赖 → foreground（等待完成）
    - 无后续依赖 → background（并行执行）
 4. **处理结果**: 解析 Sub-Agent 返回报告
-5. **更新状态**: 更新任务列表
+5. **更新任务列表状态** (硬性门禁 — 必须在下一次派发前完成):
+   a. 将任务 **Status** 字段更改为 COMPLETED / FAILED / BLOCKED
+   b. 标记每个验收标准复选框: `[ ]` → `[x]` 或注明未满足原因
+   c. 记录 commit SHA: 在任务的 Commit Message 后添加 `Committed: <SHA>`
+   d. 重新计算汇总统计（完成数量、进度百分比）
+   e. 回读任务以验证写入已持久化
+   f. 验证通过后，方可推进到下一个任务派发
 6. **Git 提交**: 如 Sub-Agent 未提交，代行提交
 
 ### Step 3: 输出总结报告
@@ -607,7 +647,7 @@ task_list_update:
 ## 重要约束
 1. 不要直接编写代码或修改文件（任务列表更新除外）
 2. 所有开发工作由 Sub-Agent 完成
-3. 每次 Sub-Agent 返回后立即更新任务列表
+3. **硬性门禁**: 每次 Sub-Agent 返回后立即更新任务列表 — 状态验证写入前不得进行下一次派发（见第 6.4 节）
 4. 遇到 FAILED 任务时，分析原因并决定是否重试
 5. 并行任务不要超过最大并行数
 ```
@@ -1011,12 +1051,13 @@ debug:
 │     3. 等待所有 background Sub-Agent 完成                          │
 │     4. 逐个处理结果                                                 │
 │                                                                     │
-│  任务完成                                                           │
+│  任务完成（硬性门禁 — 必须在下一次派发前完成）                       │
 │     1. 解析 Sub-Agent 执行报告                                     │
 │     2. 验证 Acceptance Criteria                                    │
 │     3. Git commit（如 Sub-Agent 未提交）                           │
-│     4. 更新任务列表状态                                            │
-│     5. 选择下一批任务                                               │
+│     4. 更新任务列表状态 + AC + commit SHA + 汇总统计               │
+│     5. 验证任务列表写入已持久化（回读确认）                          │
+│     6. 选择下一批任务                                               │
 │                                                                     │
 │  任务失败                                                           │
 │     1. 分析 Sub-Agent 报告的失败原因                               │
