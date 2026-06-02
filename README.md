@@ -2,7 +2,7 @@
 
 > A structured specification system for infrastructure and platform engineering projects.
 
-**Version**: 1.2 | **Last Updated**: 2026-05-11 | **Templates**: 8 documents, ~7,000 lines
+**Version**: 1.3 | **Last Updated**: 2026-06-02 | **Templates**: 9 documents, ~7,750 lines | **Skills**: 3 loadable skills
 
 ---
 
@@ -425,6 +425,16 @@ spec-coding-templates/
 │   ├── 07_Auto_Task_Config_Template.md            ← Supporting: Automation
 │   ├── 08_Infra_DevOps_Dependency_Rules_Template.md ← Supporting: Dependencies
 │   └── 09_Bug_Analysis_Report_Template.md         ← Supporting: Bug Investigation
+├── skills/                                         ← AI Coding Agent Skills
+│   ├── README.md                                  ← Skills documentation
+│   ├── SPEC_CODING_SKILLS.md                      ← Complete skill reference
+│   ├── spec-workflow.md                           ← Full workflow skill
+│   ├── spec-review.md                             ← Cross-context review skill
+│   └── spec-bug.md                                ← Bug analysis skill
+├── cn/                                            ← Chinese translation
+│   ├── README.md
+│   ├── templates/                                 ← Chinese templates
+│   └── examples/                                  ← Chinese examples
 └── examples/
     ├── README.md                                  ← Example walkthrough
     ├── filled-gap-analysis.md                     ← Filled GAP Analysis
@@ -435,7 +445,90 @@ spec-coding-templates/
 
 ---
 
-## 10. Best Practices (最佳实践)
+## 10. AI Coding Agent Skills
+
+### What Are Skills?
+
+Skills are loadable instruction files that enable AI Coding Agents (like Claude Code) to systematically apply Spec Coding templates. Think of them as "executable workflows" that guide both the AI and the user through structured specification development.
+
+### Available Skills
+
+| Skill | Purpose | When to Use |
+|-------|---------|-------------|
+| **spec:workflow** | Execute complete Spec Coding workflow | Starting a new project, running full pipeline |
+| **spec:review** | Conduct cross-context review | After Requirements or FIP completion |
+| **spec:bug** | Systematic bug analysis | When bugs are reported, need root cause investigation |
+
+### Installation
+
+```bash
+# Copy skills to Claude Code skills directory
+cp -r skills/* ~/.claude/skills/
+
+# Or link for easy updates
+ln -s $(pwd)/skills/spec-*.md ~/.claude/skills/
+```
+
+### Usage Examples
+
+```bash
+# Start new project workflow
+/spec:workflow project_name="MyService" work_type="new_service" issue_number="123"
+
+# Conduct review
+/spec:review document_type="REQ" document_path="docs/specs/REQ_MyService.md"
+
+# Analyze bug
+/spec:bug issue_number="456" issue_title="Auth_Failure" error_evidence="401 Unauthorized"
+```
+
+### Skill Parameters
+
+**spec:workflow**:
+- `project_name` (required): Project identifier
+- `work_type` (optional): new_service, enhancement, bugfix, migration
+- `issue_number` (optional): GitHub/Jira issue number
+
+**spec:review**:
+- `document_type` (required): REQ or FIP
+- `document_path` (required): Path to specification document
+
+**spec:bug**:
+- `issue_number` (required): Bug issue number
+- `issue_title` (required): Bug title
+- `error_evidence` (optional): Error logs or evidence
+
+### Skill Architecture
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    Spec Coding Skills System                 │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  User Request ──→ Skill Loading ──→ Parameter Validation   │
+│                                      ↓                      │
+│                             Template Integration            │
+│                                      ↓                      │
+│                             Guided Execution                │
+│                                      ↓                      │
+│                             Quality Validation              │
+│                                      ↓                      │
+│                             Document Generation            │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Skill Development
+
+See `skills/README.md` for:
+- Complete skill reference
+- Extension development guide
+- Quality assurance checklist
+- Troubleshooting tips
+
+---
+
+## 11. Best Practices (最佳实践)
 
 ### Specification Writing
 
@@ -475,7 +568,7 @@ spec-coding-templates/
 
 ---
 
-## 11. Template Detail Reference
+## 12. Template Detail Reference
 
 ### Template 01: GAP Analysis (~1,073 lines)
 - **Sections**: Overview, Current State Assessment, Gap Analysis Matrix, Strategic Roadmap, Risk Assessment, Success Metrics
