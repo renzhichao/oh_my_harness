@@ -8,7 +8,7 @@ A **documentation-only** collection of structured specification templates ("Spec
 
 ## Repository Structure
 
-- `templates/` — 8 blank templates forming the Spec Coding pipeline (~7,000 lines total)
+- `templates/` — 9 blank templates forming the Spec Coding pipeline and supporting documents (~7,750 lines total)
 - `examples/` — Filled versions of templates 01–04 for a reference project (ALB + Fargate Java service, Issue #1880)
 - `cn/` — Full Chinese translation (`cn/README.md`, `cn/templates/`, `cn/examples/`)
 - `README.md` — Comprehensive usage guide and methodology reference
@@ -22,11 +22,12 @@ Templates are used sequentially; each builds on the previous:
 3. **03_FIP_Template** → Architecture design with Mermaid diagrams, risk assessment
 4. **04_Task_List_Template** → Phased task breakdown with dependencies and effort estimates
 
-Four supporting templates apply cross-cutting:
+Five supporting templates apply cross-cutting:
 - **05_Naming_Rules** — Resource naming standards (referenced by all templates)
 - **06_Failure_Patterns** — Known failure modes (referenced in FIP Section 5)
 - **07_Auto_Task_Config** — YAML config driving automated task execution via Sub-Agent architecture (v2)
 - **08_Infra_DevOps_Dependency_Rules** — Environment promotion and deployment safety rules
+- **09_Bug_Analysis_Report** — Structured bug investigation with root cause analysis, solution comparison, and fix strategy
 
 ## Template Conventions
 
@@ -56,7 +57,7 @@ When editing templates or documentation:
 - Keep the severity/status marker systems consistent across all documents
 - Preserve the `<!-- INSTRUCTION: -->` comment format in templates
 - Use Mermaid diagram syntax for architecture visuals in the FIP template
-- Template numbering (01–08) must remain stable; they are cross-referenced throughout
+- Template numbering (01–09) must remain stable; they are cross-referenced throughout
 - Template 07 (Auto Task Config) uses a v2 Sub-Agent architecture — tasks run in isolated Sub-Agent contexts with parallel execution support
 
 ## Cross-Template References

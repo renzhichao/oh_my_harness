@@ -39,30 +39,48 @@ Spec Coding is a development practice where **structured specifications drive th
 Spec Coding follows a sequential pipeline where each document builds on the previous one:
 
 ```
-┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
-│                 │     │                 │     │                 │     │                 │
-│  1. GAP Analysis │────>│ 2. Requirements │────>│       3. FIP   │────>│   4. Task List  │
-│                 │     │                 │     │ (Feature Impl.  │     │                 │
-│ "Where are we?" │     │ "What to build?"│     │     Plan)       │     │ "How to execute?"│
-│                 │     │                 │     │                 │     │                 │
-│ "Where to go?"  │     │ "How to verify?"│     │ "How to design?"│     │ "In what order?" │
-│                 │     │                 │     │                 │     │                 │
-└─────────────────┘     └─────────────────┘     └─────────────────┘     └─────────────────┘
-        |                       |                       |                       |
-        v                       v                       v                       v
-  Baseline current        Define acceptance        Architecture with       Phased tasks with
-  state and identify      criteria, NFRs,          Mermaid diagrams,       dependencies,
-  gaps to close           infra requirements       risk assessment         effort estimates
+┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐     ┌─────────────────────┐
+│                 │     │                 │     │                 │     │                 │     │                     │
+│  1. GAP Analysis │────>│ 2. Requirements │────>│       3. FIP   │────>│   4. Task List  │────>│ 5. AUTO_TASK_CONFIG │
+│                 │     │                 │     │ (Feature Impl.  │     │                 │     │ (Execution Spec)    │
+│ "Where are we?" │     │ "What to build?"│     │     Plan)       │     │ "How to execute?"│     │ "Automation rules"  │
+│                 │     │                 │     │                 │     │                 │     │                     │
+│ "Where to go?"  │     │ "How to verify?"│     │ "How to design?"│     │ "In what order?" │     │ "How to automate?"  │
+│                 │     │                 │     │                 │     │                 │     │                     │
+└─────────────────┘     └─────────────────┘     └─────────────────┘     └─────────────────┘     └─────────────────────┘
+        |                       |                       |                       |                            |
+        v                       v                       v                       v                            v
+  Baseline current        Define acceptance        Architecture with       Phased tasks with          Config YAML for
+  state and identify      criteria, NFRs,          Mermaid diagrams,       dependencies,              automated task
+  gaps to close           infra requirements       risk assessment         effort estimates            execution
+                                                            │
+                                                            ▼
+                                                 ┌─────────────────────┐
+                                                 │  🔄 Review Gate     │
+                                                 │  (after REQ & FIP)  │
+                                                 └─────────────────────┘
+                                                            │
+                                                            ▼
+                                                 Cross-context validation
+                                                 before implementation
 ```
 
 ### Pipeline Flow
 
-| Stage | Document | Input | Output | Reviewers |
-|-------|----------|-------|--------|-----------|
-| 1 | GAP Analysis | Business problem, current infrastructure | Gap list, investment justification | Tech Lead, Product Owner |
-| 2 | Requirements | GAP Analysis findings | FR/NFR/infra/integration requirements | Tech Lead, QA, Security |
-| 3 | FIP | Requirements spec | Architecture design, implementation plan, risk assessment | Architects, Senior Engineers |
-| 4 | Task List | FIP implementation plan | Phased tasks with dependencies, effort estimates | Engineering Team |
+| Stage | Document | Input | Output | Reviewers | Review Gate |
+|-------|----------|-------|--------|-----------|-------------|
+| 1 | GAP Analysis | Business problem, current infrastructure | Gap list, investment justification | Tech Lead, Product Owner | - |
+| 2 | Requirements | GAP Analysis findings | FR/NFR/infra/integration requirements | Tech Lead, QA, Security | **🔄 Cross-context review** |
+| 3 | FIP | Requirements spec | Architecture design, implementation plan, risk assessment | Architects, Senior Engineers | **🔄 Cross-context review** |
+| 4 | Task List | FIP implementation plan | Phased tasks with dependencies, effort estimates | Engineering Team | - |
+| 5 | AUTO_TASK_CONFIG | Task List spec | YAML configuration for automated execution | DevOps, SRE | - |
+
+**🔄 Cross-Context Review Gate**: After Requirements and FIP completion, conduct a structured review across different contexts (technical, security, operations, business) to validate the specification before implementation begins. This review ensures:
+- Requirements align with business objectives and user needs
+- Architecture decisions are sound and complete
+- Security and operational concerns are addressed
+- Implementation plan is feasible and properly estimated
+- Cross-team dependencies are identified and managed
 
 ---
 
@@ -76,6 +94,7 @@ In addition to the four-document pipeline, four supporting documents provide cro
 | **Failure Patterns** (06) | Document known failure modes and recovery procedures | Referenced during FIP risk assessment |
 | **AUTO_TASK_CONFIG** (07) | Specification schema for automated task execution with validation gates | Applied after Task List is finalized |
 | **Infra Dependencies** (08) | Define environment promotion, component dependencies, blockers | Referenced during FIP architecture design |
+| **Bug Analysis Report** (09) | Structured investigation and documentation of bugs with fix strategy | Applied when bugs are discovered in any phase |
 
 ```
                          ┌──────────────────────────┐
@@ -110,8 +129,9 @@ In addition to the four-document pipeline, four supporting documents provide cro
 | 06 | Failure Patterns | `templates/06_Failure_Patterns_Template.md` | ~650 | Document known failure modes, root causes, and recovery procedures |
 | 07 | AUTO_TASK_CONFIG | `templates/07_Auto_Task_Config_Template.md` | ~550 | YAML configuration for automated task execution with validation gates |
 | 08 | Infra/DevOps Dependencies | `templates/08_Infra_DevOps_Dependency_Rules_Template.md` | ~654 | Environment promotion rules, component dependencies, deployment blockers |
+| 09 | Bug Analysis Report | `templates/09_Bug_Analysis_Report_Template.md` | ~750 | Structured bug analysis with root cause investigation, solution comparison, and fix strategy |
 
-**Total**: ~7,000 lines of structured specification templates.
+**Total**: ~7,750 lines of structured specification templates.
 
 ---
 
@@ -137,19 +157,47 @@ cp spec-coding-templates/templates/01_GAP_Analysis_Template.md \
 2. NEXT ────→ Write Requirements (Template 02)
    │             Convert gaps into measurable requirements
    │
-3. THEN ────→ Create FIP (Template 03)
+3. REVIEW ──→ 🔄 Cross-Context Review Gate
+   │             Validate Requirements across technical, security,
+   │             operational, and business contexts before proceeding
+   │
+4. THEN ────→ Create FIP (Template 03)
    │             Design architecture, plan implementation
    │
-4. FINALLY ─→ Build Task List (Template 04)
+5. REVIEW ──→ 🔄 Cross-Context Review Gate
+   │             Validate FIP architecture, risk assessment,
+   │             and implementation plan before execution
+   │
+6. FINALLY ─→ Build Task List (Template 04)
    │             Break into phased, trackable tasks
    │
-5. THROUGHOUT→ Apply Naming Rules (Template 05)
+7. CONFIGURE → Setup AUTO_TASK_CONFIG (Template 07)
+                Specify execution rules, validation gates,
+                and automation parameters for tasks
+   │
+8. EXECUTE ──→ Run automated task execution
+                Based on AUTO_TASK_CONFIG rules (requires
+                compatible runtime: Claude Code Agent Tool,
+                custom orchestrator, or Sub-Agent system)
+
+9. THROUGHOUT→ Apply Naming Rules (Template 05)
                 Reference Failure Patterns (Template 06)
-                Configure AUTO_TASK_CONFIG (Template 07)
                 Enforce Infra Dependencies (Template 08)
 ```
 
 ### Step 3: Fill and Review
+
+**🔄 Cross-Context Review Process**: After completing Requirements (Template 02) and FIP (Template 03), conduct a structured review before proceeding to implementation. This review should include:
+
+- **Technical Review**: Validate architecture decisions, technology choices, and implementation feasibility
+- **Security Review**: Assess security implications, identify vulnerabilities, verify compliance requirements
+- **Operational Review**: Evaluate deployability, monitoring, maintenance, and operational concerns
+- **Business Review**: Confirm alignment with business objectives, user needs, and cost expectations
+
+**Review Deliverables**:
+- Review checklist with findings and action items
+- Updated specification documents addressing review feedback
+- Approval/sign-off from required stakeholders before proceeding
 
 Each template follows the same pattern:
 1. Replace `[PLACEHOLDER]` markers with project-specific content
@@ -242,12 +290,35 @@ GAP Analysis ──→ Requirements ──→ FIP ──→ Task List ──→ 
 
 **Templates Used**: 01 + 02 + 03 + 04 + 05 + 06 + 07 + 08 (all templates)
 
-### Scenario B: Bug Fix or Small Enhancement (Abbreviated Pipeline)
+### Scenario B: Bug Investigation & Fix (Bug Analysis Report)
 
-**Context**: Fix NLB routing issue in the dev PostgreSQL cluster.
+**Context**: Production bug where Epic status is stuck at "New" despite planning agent creating scratchpad.
 
 ```
-(No GAP Analysis needed - problem is well-defined)
+Bug Report ──→ Bug Analysis Report (BAR) ──→ Targeted Fix ──→ Validation
+
+BAR Template 09:
+  - Bug description with current vs expected behavior
+  - Root cause analysis (multi-layered with probability ranking)
+  - Solution comparison (Options A/B/C with pros/cons)
+  - Phased fix strategy with risk assessment
+  - Test plan and time estimates
+```
+
+**Templates Used**: 09 (BAR) + optionally 02/03/04 for complex fixes requiring redesign
+
+**When to use BAR**:
+- Bug investigation requires systematic root cause analysis
+- Multiple solution approaches need comparison
+- Fix has significant risk and needs phased rollout
+- Bug reveals architectural or process issues worth documenting
+
+### Scenario C: Quick Fix (Abbreviated Pipeline)
+
+**Context**: Fix NLB routing issue in the dev PostgreSQL cluster (well-understood problem).
+
+```
+(No GAP Analysis or BAR needed - problem is well-defined)
 
 Light Requirements ──→ Targeted FIP ──→ Focused Task List
 
@@ -257,6 +328,8 @@ Task List: 3-5 tasks in a single phase
 ```
 
 **Templates Used**: 02 (partial) + 03 (partial) + 04 (partial)
+
+### Scenario D: Security Hardening (Cross-Cutting)
 
 ### Scenario C: Security Hardening (Cross-Cutting)
 
@@ -272,7 +345,7 @@ GAP Analysis ──→ Security-Focused Requirements ──→ FIP (Security Des
 
 **Templates Used**: 01 + 02 + 03 + 06
 
-### Scenario D: Naming Convention Rollout (Standalone)
+### Scenario E: Naming Convention Rollout (Standalone)
 
 **Context**: Standardize naming for all Lambda functions and DynamoDB tables.
 
@@ -286,7 +359,7 @@ Naming Rules Template ──→ CI/CD Validation Script ──→ Migration Plan
 
 **Templates Used**: 05 only (with Section 6 validation and Section 7 migration)
 
-### Scenario E: Multi-Environment Deployment Automation
+### Scenario F: Multi-Environment Deployment Automation
 
 **Context**: Automate deployment of a Fargate service across dev, staging, prod.
 
@@ -350,7 +423,8 @@ spec-coding-templates/
 │   ├── 05_Naming_Rules_Template.md                ← Supporting: Naming
 │   ├── 06_Failure_Patterns_Template.md            ← Supporting: Failures
 │   ├── 07_Auto_Task_Config_Template.md            ← Supporting: Automation
-│   └── 08_Infra_DevOps_Dependency_Rules_Template.md ← Supporting: Dependencies
+│   ├── 08_Infra_DevOps_Dependency_Rules_Template.md ← Supporting: Dependencies
+│   └── 09_Bug_Analysis_Report_Template.md         ← Supporting: Bug Investigation
 └── examples/
     ├── README.md                                  ← Example walkthrough
     ├── filled-gap-analysis.md                     ← Filled GAP Analysis
@@ -435,14 +509,18 @@ spec-coding-templates/
 - **Sections**: Environment Dependency Rules, Component Dependencies, Cross-Service Rules, Deployment Blockers, Naming & Tagging Dependencies, Validation Checklists, Common Patterns
 - **Key Deliverable**: Deployment safety rules preventing out-of-order or unsafe changes
 
+### Template 09: Bug Analysis Report (~750 lines)
+- **Sections**: Bug Description, Root Cause Analysis (multi-layered with probability ranking), Impact Assessment, Solution Analysis (Options A/B/C), Recommended Fix Strategy, Related Files, Test Plan, Time Estimates, Related Issues & References
+- **Key Deliverable**: Comprehensive bug investigation document with systematic root cause analysis, solution comparison, and phased fix strategy
+
 ---
 
 ## Footer
 
 | Field | Value |
 |-------|-------|
-| **Version** | 1.2 |
-| **Last Updated** | 2026-05-11 |
+| **Version** | 1.3 |
+| **Last Updated** | 2026-06-02 |
 | **Maintainer** | Platform Engineering Team |
 | **License** | Internal Use |
 
