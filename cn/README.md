@@ -365,7 +365,207 @@ spec-coding-templates/
 
 ---
 
-## 10. 最佳实践
+## 10. AI Coding Agent 技能（Skills）
+
+### 什么是技能（Skills）？
+
+技能（Skills）是可加载的指令文件，让 AI Coding Agent（如 Claude Code）能够系统化地应用 Spec Coding 模板。可以把它们理解成"可执行工作流"，引导 AI 和用户共同完成结构化的规范开发。
+
+### 可用技能
+
+| 技能 | 用途 | 使用时机 |
+|------|------|----------|
+| **spec:workflow** | 执行完整的 Spec Coding 工作流 | 启动新项目、运行端到端流水线 |
+| **spec:review** | 进行跨上下文评审 | Requirements 或 FIP 完成后 |
+| **spec:bug** | 系统化的 Bug 分析 | 收到 Bug 报告、需要根因分析时 |
+
+### 安装
+
+```bash
+# 将技能复制到 Claude Code 的 skills 目录
+cp -r skills/* ~/.claude/skills/
+
+# 或者使用软链，方便后续更新
+ln -s $(pwd)/skills/spec-*.md ~/.claude/skills/
+```
+
+### 使用示例
+
+```bash
+# 启动新项目工作流
+/spec:workflow project_name="MyService" work_type="new_service" issue_number="123"
+
+# 进行评审
+/spec:review document_type="REQ" document_path="docs/specs/REQ_MyService.md"
+
+# 分析 Bug
+/spec:bug issue_number="456" issue_title="Auth_Failure" error_evidence="401 Unauthorized"
+```
+
+### 技能参数
+
+**spec:workflow**：
+- `project_name`（必填）：项目标识符
+- `work_type`（可选）：new_service、enhancement、bugfix、migration
+- `issue_number`（可选）：GitHub/Jira Issue 编号
+
+**spec:review**：
+- `document_type`（必填）：REQ 或 FIP
+- `document_path`（必填）：规范文档路径
+
+**spec:bug**：
+- `issue_number`（必填）：Bug Issue 编号
+- `issue_title`（必填）：Bug 标题
+- `error_evidence`（可选）：错误日志或证据
+
+### 技能架构
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    Spec Coding 技能系统                       │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  用户请求 ──→ 技能加载 ──→ 参数校验                          │
+│                                ↓                            │
+│                       模板集成                                │
+│                                ↓                            │
+│                       引导式执行                              │
+│                                ↓                            │
+│                       质量校验                                │
+│                                ↓                            │
+│                       文档生成                                │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### 技能开发
+
+参见 `skills/README.md`：
+- 完整技能参考
+- 扩展开发指南
+- 质量保障清单
+- 故障排查建议
+
+---
+
+## 11. 框架对比：oh_my_harness 与主流 AI Coding 框架
+
+### 总览对比表
+
+| 维度 | oh_my_harness | GitHub Spec Kit | Superpowers | GSD | GStack |
+|------|---------------|------------------|-------------|-----|--------|
+| **GitHub Stars** | 开源 | GitHub 官方 | 94,000 | 35,000 | 85,000+ |
+| **作者** | Arthur Ren（任志超） | GitHub | 社区 | 社区 | Gary Tan（YC CEO） |
+| **核心定位** | Spec Coding 方法论模板 | Spec-Driven 开发工具包 | TDD 强制执行框架 | 防止上下文腐化 | 角色化 AI 团队治理 |
+| **语言** | **中文 + 英文** | 英文 | 英文 | 英文 | 英文 |
+| **主要用途** | 企业培训、方法论落地 | GitHub 集成、工具无关 | 测试驱动开发 | 长会话质量保障 | 个人创始人、AI 团队模拟 |
+
+### 核心特性对比
+
+#### oh_my_harness 独有特性
+
+**方法论导向**：
+- **原创 Spec Coding 方法论**，包含四条工程原则：Spec First / Living Documents / Traceability / Validation
+- **8 个核心模板**（约 7,750 行结构化规范）
+- **全生命周期覆盖**：需求 → 设计 → 实现 → 测试 → 部署
+
+**企业级特性**：
+- **中文本地化**，国内团队可无缝采纳
+- **金融行业验证**，已在三菱日联银行（MUFG）、国信证券等真实项目中落地
+- **培训导向设计**，专门面向 AI Coding 教育培训项目
+- **基于 Git 的版本管理**，规范与代码共同演进
+
+**模板体系**：
+```
+需求：requirement-spec + functional-impact
+设计：api-spec + component-spec + data-model
+实现：implementation-plan + tech-design
+测试：testing-strategy + regression-checklist
+部署：deployment-plan + rollback-plan
+```
+
+#### 其他框架特性
+
+**GitHub Spec Kit**：
+- Agent 无关（支持多种 AI 工具）
+- 自动化特性编号系统
+- YAML 校验工作流
+- **优势**：GitHub 官方支持，工具生态成熟
+
+**Superpowers**：
+- 以 **TDD 强制执行**为核心纪律
+- 覆盖 6 大 AI Coding 领域
+- 规划 + 调试 + 验证能力
+- 基于 Markdown 的文档体系
+- **优势**：工程纪律严格，测试驱动方法
+
+**GSD**：
+- **解决长 AI Coding 会话的上下文腐化问题**
+- 69 个命令 + 24 个专用 Agent
+- Phase → Plan → Execute 生命周期
+- Meta-prompting 框架
+- **优势**：长时间会话的质量保障
+
+**GStack**：
+- **角色化治理**（CEO Review、Security Audit、Browser QA）
+- 6 个专用技能
+- 每周 10K+ 行代码产能
+- 面向个人的 AI 团队模拟
+- **优势**：为个人开发者提供完整的 AI 团队模拟能力
+
+### 差异化矩阵
+
+| 差异化维度 | oh_my_harness 独有优势 |
+|------------|--------------------------|
+| **方法论深度** | **原创 Spec Coding 方法论**，不是单纯的工具集合 |
+| **语言本地化** | **原生中文支持**，消除语言障碍 |
+| **行业适配** | **金融行业验证**（三菱日联、国信证券） |
+| **培训导向** | 定位为**企业培训课程**，而非纯粹的工具 |
+| **生产验证** | **mal.ai 10 倍生产力提升**的真实结果 |
+| **企业合规** | 内置**金融级合规**（7 年审计日志、数据安全） |
+| **遗留系统支持** | 提供**考古方法论**和逆向工程支持 |
+
+### 推荐使用场景
+
+**适合选择 oh_my_harness 的场景**：
+- 金融、证券等高合规行业
+- 需要中文文档的团队
+- 企业级 AI Coding 培训项目
+- 遗留系统标准化需求
+- 需要完整方法论而非单纯工具
+- 需要审计轨迹的规范驱动开发
+
+**适合选择其他框架的场景**：
+- **GitHub Spec Kit**：已在用 GitHub 工具链，需要官方集成
+- **Superpowers**：TDD 实践者，强调测试驱动开发
+- **GSD**：长 AI Coding 会话，关注上下文腐化
+- **GStack**：需要完整 AI 团队模拟的个人创始人
+
+### 核心价值主张
+
+**oh_my_harness 的根本价值**：
+1. **方法论原创性**：从零创建 Spec Coding 方法论，不是对工具的封装
+2. **企业生产验证**：在金融（三菱日联）和汽车（蔚来）行业的大规模验证
+3. **中文本地化**：无语言或文化障碍，团队采纳率更高
+4. **合规内建**：从立项之初就内置金融级合规要求
+5. **培训生态**：完整的培训课程，附带真实案例研究
+
+**与其他框架的本质区别**：
+- **其他框架**：工具优先，解决特定技术问题
+- **oh_my_harness**：方法论优先，解决工程体系挑战
+
+---
+
+*参考资料：*
+- *[GitHub Spec Kit - Official Repository](https://github.com/github/spec-kit)*
+- *[Superpowers Skills Framework - Termdock](https://www.termdock.com/en/blog/superpowers-framework-agent-skills)*
+- *[Superpowers, GSD, GStack Comparison - Medium](https://medium.com/@tentenco/superpowers-gsd-and-gstack-what-each-claude-code-framework-actually-constrains-12a1560960ad)*
+- *[GSD Context Rot Prevention - The New Stack](https://thenewstack.io/beating-the-rot-and-getting-stuff-done/)*
+- *[GStack by Gary Tan - GitHub](https://github.com/garrytan/gstack)*
+
+---
+
+## 12. 最佳实践
 
 ### 规范编写
 
@@ -405,7 +605,7 @@ spec-coding-templates/
 
 ---
 
-## 11. 模板详细参考
+## 13. 模板详细参考
 
 ### 模板 01：GAP 差距分析（约 1,073 行）
 - **章节**: 概述、现状评估、差距分析矩阵、战略路线图、风险评估、成功指标
@@ -445,8 +645,8 @@ spec-coding-templates/
 
 | 字段 | 值 |
 |------|------|
-| **版本** | 1.2 |
-| **最后更新** | 2026-05-11 |
+| **版本** | 1.3 |
+| **最后更新** | 2026-06-18 |
 | **维护者** | 平台工程团队 |
 | **许可** | 内部使用 |
 
