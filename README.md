@@ -528,7 +528,124 @@ See `skills/README.md` for:
 
 ---
 
-## 11. Best Practices (最佳实践)
+## 11. Framework Comparison: oh_my_harness vs Mainstream AI Coding Frameworks
+
+### Overview Comparison Table
+
+| Dimension | oh_my_harness | GitHub Spec Kit | Superpowers | GSD | GStack |
+|-----------|---------------|------------------|-------------|-----|--------|
+| **GitHub Stars** | Open source | GitHub Official | 94,000 | 35,000 | 85,000+ |
+| **Creator** | Arthur Ren (任志超) | GitHub | Community | Community | Gary Tan (YC CEO) |
+| **Core Focus** | Spec Coding methodology templates | Spec-Driven development toolkit | TDD enforcement framework | Context rot prevention | Role-based AI team governance |
+| **Language** | **Chinese + English** | English | English | English | English |
+| **Primary Use** | Enterprise training, methodology implementation | GitHub integration, tool-agnostic | Test-driven development | Long session quality | Solo founders, AI team simulation |
+
+### Core Features Comparison
+
+#### oh_my_harness Unique Characteristics
+
+**Methodology-Oriented**:
+- **Original Spec Coding methodology** with four engineering principles: Spec First / Living Documents / Traceability / Validation
+- **8 core templates** (~7,750 lines of structured specifications)
+- **Full-lifecycle coverage**: Requirements → Design → Implementation → Testing → Deployment
+
+**Enterprise-Grade Features**:
+- **Chinese localization** for seamless adoption in Chinese teams
+- **Financial industry validation** through real-world implementations (MUFG Bank, Guosen Securities)
+- **Training-oriented design** specifically for AI coding education programs
+- **Git-based version management** with specs evolving alongside code
+
+**Template System**:
+```
+Requirements: requirement-spec + functional-impact
+Design: api-spec + component-spec + data-model
+Implementation: implementation-plan + tech-design
+Testing: testing-strategy + regression-checklist
+Deployment: deployment-plan + rollback-plan
+```
+
+#### Other Frameworks Characteristics
+
+**GitHub Spec Kit**:
+- Agent-agnostic (supports multiple AI tools)
+- Automatic feature numbering system
+- YAML validation workflows
+- **Advantage**: GitHub official support, mature tool ecosystem
+
+**Superpowers**:
+- **TDD enforcement** as core discipline
+- 6 major AI coding domains coverage
+- Planning + Debugging + Verification capabilities
+- Markdown-based documentation
+- **Advantage**: Strong engineering discipline, test-driven approach
+
+**GSD**:
+- **Solves context rot problem** in long AI coding sessions
+- 69 commands + 24 specialized agents
+- Phase → Plan → Execute lifecycle
+- Meta-prompting framework
+- **Advantage**: Quality assurance for extended coding sessions
+
+**GStack**:
+- **Role-based governance** (CEO Reviews, Security Audits, Browser QA)
+- 6 specialized skills
+- 10K+ lines of code per week capacity
+- AI team simulation for individuals
+- **Advantage**: Complete AI team simulation for solo developers
+
+### Differentiation Matrix
+
+| Differentiation Dimension | oh_my_harness Unique Advantage |
+|---------------------------|----------------------------------|
+| **Methodology Depth** | **Original Spec Coding methodology**, not just a tool collection |
+| **Language Localization** | **Native Chinese support** removes language barriers |
+| **Industry Adaptation** | **Financial industry validation** (MUFG, Guosen Securities) |
+| **Training Orientation** | Designed as **enterprise training curriculum**, not purely tool-focused |
+| **Production Validation** | **mal.ai 10x productivity improvement** real-world results |
+| **Enterprise Compliance** | Built-in **financial-grade compliance** (7-year audit logs, data security) |
+| **Legacy System Support** | Provides **archaeology methodology** and reverse engineering support |
+
+### Recommended Usage Scenarios
+
+**Choose oh_my_harness when**:
+- Financial, securities, or high-compliance industries
+- Teams requiring Chinese documentation
+- Enterprise AI coding training programs
+- Legacy system standardization needs
+- Need complete methodology over pure tools
+- Spec-driven development with audit trails
+
+**Choose other frameworks when**:
+- **GitHub Spec Kit**: Already using GitHub toolchain, need official integration
+- **Superpowers**: TDD practitioners, emphasizing test-driven development
+- **GSD**: Long AI coding sessions, concerned about context rot
+- **GStack**: Individual founders needing complete AI team simulation
+
+### Core Value Proposition
+
+**oh_my_harness fundamental value**:
+1. **Methodological originality**: Created Spec Coding methodology from scratch, not a wrapper around tools
+2. **Enterprise production validation**: Large-scale validation across financial (MUFG) and automotive (NIO) industries
+3. **Chinese localization**: No language or cultural barriers for higher team adoption
+4. **Compliance by design**: Financial-grade compliance requirements built-in from inception
+5. **Training ecosystem**: Complete training curriculum with real-world case studies
+
+**Essential difference from other frameworks**:
+- **Other frameworks**: Tool-first, solving specific technical problems
+- **oh_my_harness**: Methodology-first, solving engineering system challenges
+
+---
+
+*Sources:*
+- *[GitHub Spec Kit - Official Repository](https://github.com/github/spec-kit)*
+- *[Superpowers Skills Framework - Termdock](https://www.termdock.com/en/blog/superpowers-framework-agent-skills)*
+- *[Superpowers, GSD, GStack Comparison - Medium](https://medium.com/@tentenco/superpowers-gsd-and-gstack-what-each-claude-code-framework-actually-constrains-12a1560960ad)*
+- *[GSD Context Rot Prevention - The New Stack](https://thenewstack.io/beating-the-rot-and-getting-stuff-done/)*
+- *[GStack by Gary Tan - GitHub](https://github.com/garrytan/gstack)*
+
+---
+
+## 12. Best Practices (最佳实践)
 
 ### Specification Writing
 
